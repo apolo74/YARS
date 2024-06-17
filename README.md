@@ -1,2 +1,2 @@
-# entheogenbot
-A chatbot for scientific education around cannabis and psychedelics research
+# YARS
+Yet Another RAG script
