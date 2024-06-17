@@ -1,5 +1,5 @@
 
-''' Chat swith PDF documents for terminal use. Nvidia
+''' Chat swith PDF documents using Nvidia
 client and LangChain libraries.
 
 Notes:
@@ -12,8 +12,8 @@ optional arguments:
   -h, --help                Show this help message and exit
 
 Author:   Boris Duran
-Email:    boris.duran@devoteam.com
-Created:  2024-06-15
+Email:    boris@yodir.com
+Created:  2024-06-17
 '''
 
 import os
@@ -23,8 +23,6 @@ import getpass
 
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
-from llama_index.embeddings.nvidia import NVIDIAEmbedding
-from llama_parse import LlamaParse
 
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyMuPDFLoader, UnstructuredMarkdownLoader
@@ -43,17 +41,6 @@ def get_nvidia_key():
         os.environ["NVIDIA_API_KEY"] = nvapi_key
     
     return os.environ["NVIDIA_API_KEY"]
-
-def get_llx_key():
-    # del os.environ['LLAMA_CLOUD_API_KEY']  ## delete key and reset
-    if os.environ.get("LLAMA_CLOUD_API_KEY", "").startswith("llx-"):
-        print("Valid LLAMA_CLOUD_API_KEY already in environment. Delete to reset")
-    else:
-        llxapi_key = getpass.getpass("LLAMA_CLOUD_API_KEY Key (starts with llx-): ")
-        assert llxapi_key.startswith("llx-"), f"{llxapi_key[:5]}... is not a valid key"
-        os.environ["LLAMA_CLOUD_API_KEY"] = llxapi_key
-    
-    return os.environ["LLAMA_CLOUD_API_KEY"]
 
 def get_model( models ):
     """Shows a list of available LLMs and returns the user's selection .
@@ -90,9 +77,7 @@ def get_pdf_langchain( path ):
                 print(f'Loading {file} ...', end='')
                 loader = PyMuPDFLoader(pdf_path)
                 print(' done!')
-                #print('Splitting in chunks:', end='')
                 pages = loader.load_and_split()
-                #print(' ... done!')
                 documents.extend( pages )
     else:
         print('Argument is a file!')
@@ -105,35 +90,7 @@ def get_pdf_langchain( path ):
         documents = pages
     print('Documents: ', len(documents))
 
-    #text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0, separator="\n")
-    #docs = text_splitter.split_documents(pages)
-    #print('Docs: ', len(docs))
-    #print('Docs: ', docs)
-
     return pages
-
-def get_pdf_llamaidx( file_path, key ):
-    parser = LlamaParse( api_key=key, result_type="markdown", split_by_page=True )
-
-    print(f'Loading PDF document from: {file_path}', end='')
-    md_pages = parser.load_data(file_path)
-    print(' ... done!')
-    #print('Markdown pages: ', md_pages)
-
-    docs = [md_pages[0].to_langchain_format()]
-    '''
-    
-    loader = UnstructuredMarkdownLoader(md_pages)
-    pages = loader.load()
-    # Split loaded documents into chunks
-    #text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=100)
-    #docs = text_splitter.split_documents(documents)
-
-    text_splitter = CharacterTextSplitter(chunk_size=2000, chunk_overlap=100, separator="\n")
-    docs = text_splitter.split_documents([md_pages[0].to_langchain_format()])
-    print('Docs[0]: ', docs[0:3])
-    '''
-    return docs
 
 def main_loop( args ):
     """Main loop where all magic happens!
@@ -143,7 +100,6 @@ def main_loop( args ):
       None
     """
     api_key_nvidia = get_nvidia_key()
-    api_key_llx = get_llx_key()
     model_name = get_model(ChatNVIDIA.get_available_models())
 
     print(60 * '-')
