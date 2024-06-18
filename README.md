@@ -23,7 +23,7 @@ You'll need an Nvidia API Key in order to use their hosted LLMs. You can create 
 
 1. Create a free account with [NVIDIA](https://build.nvidia.com/explore/discover), which hosts NVIDIA AI Foundation models.
 2. Click on your model of choice.
-3. Under Input select the Python tab, and click *Get API Key*. Then click *Generate Key*.
+3. Under Input select the Python tab, and click *Get API Key*. Then click *Generate Key*. The generated key should start with 'nvapi-'.
 4. Copy the generated key as NVIDIA_API_KEY and add it to your environment variables.
 
 ### Installing YARS

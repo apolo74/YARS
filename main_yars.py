@@ -1,37 +1,43 @@
 
-''' Chat with PDF documents using Nvidia
-client and LangChain libraries.
+''' Chat with PDF documents using Nvidia AI 
+endpoints and LangChain libraries.
 
 Notes:
   Choose between pre-trained LLM models
 
 Usage:    
-        main_yars.py
+        main_yars.py [-h] -d DOCUMENT
 
 optional arguments:
-  -h, --help                Show this help message and exit
+    -h, --help                          Show this help message and exit
 
+required arguments:
+    -d DOCUMENT, --document DOCUMENT    Path to document or directory.
 Author:   Boris Duran
 Email:    boris@yodir.com
-Created:  2024-06-17
+Created:  2024-06-18
 '''
 
 import os
 import argparse
-#import time
 import getpass
 
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
 
 from langchain_community.vectorstores import FAISS
-from langchain_community.document_loaders import PyMuPDFLoader, UnstructuredMarkdownLoader
+from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
-from langchain_text_splitters import CharacterTextSplitter, RecursiveCharacterTextSplitter
 
 def get_nvidia_key():
+    """Obtains the NVIDIA_API_KEY from the environment variables.
+    Args:
+      None
+    Returns:
+      String: Nvidia's API key.
+    """
     # del os.environ['NVIDIA_API_KEY']  ## delete key and reset
     if os.environ.get("NVIDIA_API_KEY", "").startswith("nvapi-"):
         print("Valid NVIDIA_API_KEY already in environment. Delete to reset")
@@ -45,9 +51,9 @@ def get_nvidia_key():
 def get_model( models ):
     """Shows a list of available LLMs and returns the user's selection .
     Args:
-      None
+      List: A List of available Models from Nvidia's catalog
     Returns:
-      model_name (str): Name of the selected LLM.
+      String: Name of the selected chat model.
     """
     models_list = []
     for ix, model in enumerate(models):
@@ -67,6 +73,12 @@ def get_model( models ):
     return model_name
 
 def get_pdf_langchain( path ):
+    """Transforms your PDF(s) into vector format and splits it(them) into chunks.
+    Args:
+      String: Path to a file or a directory
+    Returns:
+      List: A list with Documents
+    """
     if os.path.isdir(path):
         print('Argument is a folder!')
         #print(len([name for name in os.listdir(path) if os.path.isfile(os.path.join(path, name))]))
@@ -95,7 +107,7 @@ def get_pdf_langchain( path ):
 def main_loop( args ):
     """Main loop where all magic happens!
     Args:
-      None
+      ArgParse: a container for argument specifications
     Returns:
       None
     """
@@ -142,11 +154,11 @@ def main_loop( args ):
 
 if __name__ == '__main__':
     print(80 * '-')
-    print("NVIDIA's Contest".center(80))
+    print("YARS: Yet Another RAG Script".center(80))
     print(80 * '-')
 
     parser = argparse.ArgumentParser(description='Chat with your documents')
-    parser.add_argument('-d', '--document', help='Path to document to be ingested [PDF].')
+    parser.add_argument('-d', '--document', required=True, help='Path to document or directory.')
 
     args = parser.parse_args()
     main_loop( args )
