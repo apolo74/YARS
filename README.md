@@ -19,6 +19,10 @@ Verify that Python is running with:
 ```
 The output should return the version of the Python libraries installed in your system. Verify also that the package installer for Python, [PIP](https://pip.pypa.io/en/stable/installation/) is installed.
 
+You'll need an Nvidia API Key in order to use their hosted LLMs. You can create your own API Key here:
+
+<<<TODO>>>
+
 ### Installing YARS
 
 First, download the repository as a [ZIP file](https://github.com/apolo74/YARS/archive/refs/heads/main.zip) or (assuming you have already installed the github package) just open a terminal and `git clone` it. Go inside the **YARS** folder and I recommend to work under a virtual environment:
