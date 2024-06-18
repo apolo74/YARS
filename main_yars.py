@@ -1,12 +1,12 @@
 
-''' Chat swith PDF documents using Nvidia
+''' Chat with PDF documents using Nvidia
 client and LangChain libraries.
 
 Notes:
   Choose between pre-trained LLM models
 
 Usage:    
-        main_rag_pdf.py
+        main_yars.py
 
 optional arguments:
   -h, --help                Show this help message and exit
