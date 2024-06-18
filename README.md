@@ -28,10 +28,21 @@ You'll need an Nvidia API Key in order to use their hosted LLMs. You can create 
 
 ### Installing YARS
 
-First, download the repository as a [ZIP file](https://github.com/apolo74/YARS/archive/refs/heads/main.zip) or (assuming you have already installed the github package) just open a terminal and `git clone` it. Go inside the **YARS** folder and I recommend to work under a virtual environment:
+First, download the repository as a [ZIP file](https://github.com/apolo74/YARS/archive/refs/heads/main.zip) or (assuming you have already installed the github package) just open a terminal and `git clone` it. Go inside the **YARS** folder and I recommend to work under a virtual environment; create one and activate it before installing the requirements:
 ```
 python -m venv .venv
 ```
+Activate the environment:
+> Windows:
+    ```
+    .\.venv\Scripts\activate
+    ```
+
+> Linux: 
+    ``` 
+    source ./.venv/bin/activate 
+    ```
+
 All the required dependencies are listed inside the *requirements.txt* file. To install them just run:
 ```
 python -m pip install -r requirements.txt
