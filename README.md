@@ -15,27 +15,30 @@ These instructions will get you a copy of the project up and running on your loc
 
 Verify that Python is running with:
 ```
->>> python --version
+python --version
 ```
 The output should return the version of the Python libraries installed in your system. Verify also that the package installer for Python, [PIP](https://pip.pypa.io/en/stable/installation/) is installed.
 
-You'll need an Nvidia API Key in order to use their hosted LLMs. You can create your own API Key here:
+You'll need an Nvidia API Key in order to use their hosted LLMs. You can create your own API Key following these steps:
 
-<<<TODO>>>
+1. Create a free account with [NVIDIA](https://build.nvidia.com/explore/discover), which hosts NVIDIA AI Foundation models.
+2. Click on your model of choice.
+3. Under Input select the Python tab, and click *Get API Key*. Then click *Generate Key*.
+4. Copy the generated key as NVIDIA_API_KEY and add it to your environment variables.
 
 ### Installing YARS
 
 First, download the repository as a [ZIP file](https://github.com/apolo74/YARS/archive/refs/heads/main.zip) or (assuming you have already installed the github package) just open a terminal and `git clone` it. Go inside the **YARS** folder and I recommend to work under a virtual environment:
 ```
->>> python -m venv .venv
+python -m venv .venv
 ```
 All the required dependencies are listed inside the *requirements.txt* file. To install them just run:
 ```
->>> python -m pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ## Execution
 To start interacting with your PDFs just run the following line. The script accepts a path to a single PDF file or path to a folder with multiple PDF files. Follow the instructions and enjoy!
 ```
->>> python main_yars.py -d [path_to_pdf_file | path_to_PDFs_folder]
+python main_yars.py -d [PATH_TO_PDF_FILE | PATH_TO_PDFs_FOLDER]
 ```
