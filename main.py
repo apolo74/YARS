@@ -6,7 +6,7 @@ Notes:
   Choose between pre-trained LLM models
 
 Usage:    
-        yars_ollama.py [-h] -d DOCUMENT
+        main.py [-h] -d DOCUMENT
 
 optional arguments:
     -h, --help                          Show this help message and exit
