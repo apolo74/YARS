@@ -1,7 +1,7 @@
 # YARS
 Yet Another RAG Script
 
-The main goal of this project is to share a light-weight but powerful and open-source base for people to ingest PDF files and find information directly by asking questions. The core components of this chatbot are **nvidia** and **langchain** libraries, both **free** to use! The main advantage of this implementation is the possibility to choose from a list of different **LLM** models hosted by NVIDIA.
+The main goal of this project is to share a light-weight but powerful and open-source base for people to ingest PDF files and find information directly by asking questions. The core components of this chatbot are **ollama** and **langchain** libraries, both **free** to use! The main advantage of this implementation is the possibility to choose from a list of different **LLM** models provided by Ollama. You are in control of which models you want to run locally!
 
 **YARS** will continue to grow with more functionality, with the target audience being the scientific community. I'll write more about my personal short- and long-term goals of this *chatbot* soon :)
 
@@ -19,12 +19,12 @@ python --version
 ```
 The output should return the version of the Python libraries installed in your system. Verify also that the package installer for Python, [PIP](https://pip.pypa.io/en/stable/installation/) is installed.
 
-You'll need an Nvidia API Key in order to use their hosted LLMs. You can create your own API Key following these steps:
+You'll need to have the Ollama server running in your machine:
 
-1. Create a free account with [NVIDIA](https://build.nvidia.com/explore/discover), which hosts NVIDIA AI Foundation models.
-2. Click on your model of choice.
-3. Under Input select the Python tab, and click *Get API Key*. Then click *Generate Key*. The generated key should start with 'nvapi-'.
-4. Copy the generated key as NVIDIA_API_KEY and add it to your environment variables.
+1. Download [Ollama](https://ollama.com/download), and follow their instructions for installation in your local machine.
+2. Make sure the Ollama server is running.
+3. Visit Ollama's [Models](https://ollama.com/library) for a list of available models.
+4. Open a terminal and download your favorite models with: `ollama run model-name`
 
 ### Installing YARS
 
