@@ -51,5 +51,5 @@ python -m pip install -r requirements.txt
 ## Execution
 To start interacting with your PDFs just run the following line. The script accepts a path to a single PDF file or path to a folder with multiple PDF files. Follow the instructions and enjoy!
 ```
-python main_yars.py -d [PATH_TO_PDF_FILE | PATH_TO_PDFs_FOLDER]
+python main.py -d [PATH_TO_PDF_FILE | PATH_TO_PDFs_FOLDER]
 ```
