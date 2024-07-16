@@ -57,6 +57,12 @@ class Assistant:
         return sorted( models_list )
 
     def change_temperature(self, temp):
+        """Transforms your PDF(s) into vector format and splits it(them) into chunks.
+        Args:
+            Float: A number between [0:1] for setting the temperature of the LLM
+        Returns:
+            Updated LLM
+        """
         self.temperature = temp
         self.llm = ChatOllama(model=self.model_name, temperature=self.temperature)
 
@@ -65,8 +71,14 @@ class Assistant:
         return
 
     def change_model(self, model):
+        """Transforms your PDF(s) into vector format and splits it(them) into chunks.
+        Args:
+            String: Name of the Ollama model to be used
+        Returns:
+            Updated LLM
+        """
         self.model_name = model
-        self.llm = ChatOllama(model=self.model_name)
+        self.llm = ChatOllama(model=self.model_name, temperature=self.temperature)
 
         print('Working with: ', self.llm)
 
