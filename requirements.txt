@@ -1,5 +1,6 @@
 langchain
 langchain-community 
-langchain-nvidia-ai-endpoints
-faiss-cpu
-pymupdf
+langchain-core
+langchain-ollama
+psycopg2
+python-environ

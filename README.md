@@ -1,7 +1,7 @@
 # YARS
 Yet Another RAG Script
 
-The main goal of this project is to share a light-weight but powerful and open-source base for people to ingest PDF files and find information directly by asking questions. The core components of this chatbot are **ollama** and **langchain** libraries, both **free** to use! The main advantage of this implementation is the possibility to choose from a list of different **LLM** models provided by Ollama. You are in control of which models you want to run locally!
+The main goal of this project is to share a light-weight but powerful and open-source base for people to talk with an SQL database and find information directly by asking questions in natural language . The core components of this chatbot are **ollama** and **langchain** libraries, both **free** to use! The main advantage of this implementation is the possibility to choose from a list of different **LLM** models provided by Ollama. You are in control of which models you want to run locally!
 
 **YARS** will continue to grow with more functionality, with the target audience being the scientific community. I'll write more about my personal short- and long-term goals of this *chatbot* soon :)
 
@@ -49,7 +49,8 @@ python -m pip install -r requirements.txt
 ```
 
 ## Execution
-To start interacting with your PDFs just run the following line. The script accepts a path to a single PDF file or path to a folder with multiple PDF files. Follow the instructions and enjoy!
+To start interacting with your databases, it is assumed that you can provide a connection to the server. 
+TODO: Follow the instructions and enjoy!
 ```
 python main.py -d [PATH_TO_PDF_FILE | PATH_TO_PDFs_FOLDER]
 ```

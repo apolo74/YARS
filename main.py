@@ -1,9 +1,9 @@
 
-''' Chat with PDF documents using Ollama 
+''' Chat with SQL database using Ollama 
 endpoints and LangChain libraries.
 
 Notes:
-  Choose between pre-trained LLM models
+  Important -> Using Langchain V0.3!!!
 
 Usage:    
         main.py [-h] -d DOCUMENT
@@ -16,7 +16,7 @@ required arguments:
     
 Author:   Boris Duran
 Email:    boris@yodir.com
-Created:  2024-07-01
+Created:  2024-10-14
 '''
 
 import os
@@ -24,14 +24,27 @@ import argparse
 import getpass
 import requests
 
-from langchain_community.chat_models import ChatOllama
-from langchain_community.embeddings import OllamaEmbeddings
+# from langchain_community.chat_models import ChatOllama
+from langchain_ollama import ChatOllama
+from langchain_community.utilities import SQLDatabase
+from langchain_community.agent_toolkits import SQLDatabaseToolkit
+# from langchain_community.agent_toolkits import create_sql_agent
+from langchain.agents.agent_toolkits import create_retriever_tool
+from langchain.agents import AgentType
 
-from langchain_community.vectorstores import FAISS
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
+# from langchain_core.output_parsers import StrOutputParser
+# from langchain_core.prompts import ChatPromptTemplate
+# from langchain_core.runnables import RunnablePassthrough
+
+from langchain_core.messages import SystemMessage
+from langchain_core.messages import HumanMessage
+from langgraph.prebuilt import create_react_agent
+
+import environ
+env = environ.Env()
+environ.Env.read_env()
+
+from datetime import datetime
 
 def get_model( models ):
     """Shows a list of available LLMs and returns the user's selection .
@@ -56,39 +69,7 @@ def get_model( models ):
 
     return model_name
 
-def get_pdf_langchain( path ):
-    """Transforms your PDF(s) into vector format and splits it(them) into chunks.
-    Args:
-      String: Path to a file or a directory
-    Returns:
-      List: A list with Documents
-    """
-    if os.path.isdir(path):
-        print('Argument is a folder!')
-        #print(len([name for name in os.listdir(path) if os.path.isfile(os.path.join(path, name))]))
-        documents = []
-        for ix, file in enumerate(os.listdir(path)):
-            if file.endswith('.pdf'):
-                pdf_path = os.path.join(path, file)
-                print(f'Loading {file} ...', end='')
-                loader = PyMuPDFLoader(pdf_path)
-                print(' done!')
-                pages = loader.load_and_split()
-                documents.extend( pages )
-    else:
-        print('Argument is a file!')
-        print(f'Loading {path} ...', end='')
-        loader = PyMuPDFLoader(path)
-        print(' done!')
-        print('Splitting in chunks:', end='')
-        pages = loader.load_and_split()
-        print(' ... done!')
-        documents = pages
-    print('Documents: ', len(documents))
-
-    return pages
-
-def main_loop( args ):
+def main_loop(  ):
     """Main loop where all magic happens!
     Args:
       ArgParse: a container for argument specifications
@@ -103,38 +84,65 @@ def main_loop( args ):
     print('Working with model:', model_name)
     print('===> Press Ctrl+C to exit! <===')
 
-    llm = ChatOllama( model = model_name )
-    emb = OllamaEmbeddings(model="mxbai-embed-large")
+    # Initialize LLM
+    llm = ChatOllama( model = model_name, temperature=0 )
 
-    docs = get_pdf_langchain( args.document )
-
-    vectorstore = FAISS.from_documents( docs, emb )
-    retriever = vectorstore.as_retriever()
-       
-    prompt = ChatPromptTemplate.from_messages(
-        [("system", "Answer solely based on the following context:\n<Documents>\n{context}\n</Documents>",),
-         ("user", "{question}"),]
+    # Setup database
+    db = SQLDatabase.from_uri(
+        f"postgresql+psycopg2://postgres:{env('DBPASS')}@localhost:5432/{env('DATABASE')}" # , schema='dbo'
     )
 
-    chain = (
-        {"context": retriever, "question": RunnablePassthrough()}
-        | prompt
-        | llm
-        | StrOutputParser()
+    system = """You are an Postgres expert agent designed to interact with a SQL database.
+    Given an input question, create a syntactically correct PostgreSQL query to run, then look at the results of the query and return the answer.
+    Unless the user specifies a specific number of examples they wish to obtain, always limit your query to at most 5 results.
+    You can order the results by a relevant column to return the most interesting examples in the database.
+    Never query for all the columns from a specific table, only ask for the relevant columns given the question.
+    Wrap each column name in single quotes (') to denote them as delimited identifiers. 
+    Pay attention to use only the column names you can see in the tables below. Be careful to not query for columns that do not exist. 
+    Also, pay attention to which column is in which table.
+    You have access to tools for interacting with the database.
+    Only use the given tools. Only use the information returned by the tools to construct your final answer.
+    You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
+
+    DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
+
+    You have access to the following tables: {table_names}
+
+    If you need to filter on a proper noun, you must ALWAYS first look up the filter value using the "search_proper_nouns" tool!
+    Do not try to guess at the proper name - use this function to find similar ones.""".format(
+        table_names=db.get_usable_table_names()
     )
-    
+
+    system_message = SystemMessage(content=system)
+
+    sql_toolkit = SQLDatabaseToolkit(db=db, llm=llm)
+    tools = sql_toolkit.get_tools()
+
+    agent = create_react_agent(llm, tools, state_modifier=system_message)
+    ''' 
+    inputs = {"messages": [HumanMessage(content="How many albums does alis in chain have?")]}
+    for s in agent.stream(inputs, stream_mode="values"):
+        message = s["messages"][-1]
+        if isinstance(message, tuple):
+            print(message)
+        else:
+            message.pretty_print()
+    '''
     try:
         while True:
             print(60 * '-', '\n')
             query_txt = input( f'Enter your prompt (Ctrl+C to exit!): ' )
+            inputs = {"messages": [HumanMessage(content=query_txt)]}
             print()
-            for chunk in chain.stream( query_txt ):
-                print(chunk, end="", flush=True)
-            print()
+            ix = 0
+            for results in agent.stream( inputs, stream_mode="values" ):
+                message = results["messages"][-1] # .pretty_print()
+                print(f'{ix:2d}: {message.content}') # 
+                ix = ix + 1
     except KeyboardInterrupt:
         print('Bye!')
     print()
-    ''' '''
+
     return
 
 if __name__ == '__main__':
@@ -142,11 +150,11 @@ if __name__ == '__main__':
     print("YARS: Yet Another RAG Script".center(80))
     print(80 * '-')
 
-    parser = argparse.ArgumentParser(description='Chat with your documents')
-    parser.add_argument('-d', '--document', required=True, help='Path to document or directory.')
+    # parser = argparse.ArgumentParser(description='Chat with your documents')
+    # parser.add_argument('-d', '--document', required=True, help='Path to document or directory.')
 
-    args = parser.parse_args()
-    main_loop( args )
+    # args = parser.parse_args()
+    main_loop( )#args )
 
     print(80 * '-')
     print("The end!".center(80))
