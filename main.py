@@ -61,7 +61,7 @@ def get_model():
     return model_name
 
 def main_sql():
-    """Main loop: Simplest approach, using 'create_sql_query_chain'
+    """Main loop: Simplest approach, using 'create_sql_query_chain' and a basic prompt template
     Args:
       ArgParse: a container for argument specifications
     Returns:
@@ -70,7 +70,7 @@ def main_sql():
     model_name = get_model()
 
     print(60 * '-')
-    print('[create_sql_query_chain]')
+    print('[create_sql_query_chain + (basic) PromptTemplate]')
     print('[LangChain]', langchain.__version__)
     print('[LangModel]', model_name)
     print('===> Press Ctrl+C to exit! <===')
@@ -83,7 +83,27 @@ def main_sql():
         f"postgresql+psycopg2://postgres:{env('DBPASS')}@localhost:5432/{env('DATABASE')}" # , schema='dbo'
     )
 
-    write_query = create_sql_query_chain(llm, db)
+    template = """
+        You are a {dialect} expert. Given an input question, first create a syntactically correct {dialect} query to run, then look at the results of the query and return the answer.
+        Unless the user specifies in the question a specific number of examples to obtain, query for at most {top_k} results using the LIMIT clause as per {dialect}. You can order the results to return the most informative data in the database.
+        Never query for all columns from a table. You must query only the columns that are needed to answer the question. Wrap each column name in single quotes (') to denote them as delimited identifiers.
+        Pay attention to use only the column names you can see in the tables below. Be careful to not query for columns that do not exist. Also, pay attention to which column is in which table.
+        Use the following format:
+
+        Question: "Question here"
+        SQLQuery: "SQL Query to run"
+        SQLResult: "Result of the SQLQuery"
+        Answer: "Final answer here"
+
+        Only use the following tables:
+
+        {table_info}.
+
+        Question: {input}
+    """
+    prompt = PromptTemplate.from_template(template).partial(dialect=db.dialect, table_info=db.get_table_info)
+
+    write_query = create_sql_query_chain(llm, db, prompt)
     execute_query = QuerySQLDataBaseTool(db=db)
     answer_prompt = PromptTemplate.from_template(
         """Given the following user question, corresponding SQL query, and SQL result, answer the user question.
