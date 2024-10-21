@@ -188,7 +188,7 @@ def main_sql():
             print()
             raw_query = write_query.invoke({"question": query_txt})
             sql_query = get_sql(raw_query)
-            print(f'[SQL] {sql_query}')
+            # print(f'[SQL] {sql_query}')
             full_chain = (
                 RunnablePassthrough.assign( result=itemgetter("query") | execute_query )
                 | answer_prompt
