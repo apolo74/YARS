@@ -6,10 +6,14 @@ Notes:
     Important -> Using Langchain V0.3!!!
 
 Usage:    
-    main.py [-h]
+    main.py [-h] [-s] examples
 
-optional arguments:
-    -h, --help  Show this help message and exit
+    positional arguments:
+        examples    Path to a JSON file with SQL examples.
+
+    options:
+        -h, --help  show this help message and exit
+        -s, --sql   Show the generated SQL query!
 
     
 Author:   Boris Duran
@@ -123,8 +127,14 @@ def get_sql_chain(llm, db, query_txt, examples_path):
 
         return response
 
-    write_query = create_sql_query_chain(llm, db, prompt)
-    raw_query = write_query.invoke({"question": query_txt})
+    # Define the chain for generating the SQL query
+    sql_chain = (
+        RunnablePassthrough.assign(table_info=lambda _: db.get_table_info())
+        | prompt
+        | llm
+        | StrOutputParser()
+    )
+    raw_query = sql_chain.invoke({"input": query_txt, "top_k": 5})
     sql_query = get_sql(raw_query)
 
     return sql_query

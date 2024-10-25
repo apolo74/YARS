@@ -41,7 +41,7 @@
         },
         {
             "input": "What is the email of Daan Peeters?",
-            "query": "SELECT email FROM customer WHERE first_name = 'Daan' and last_name = 'Peeters';"
+            "query": "SELECT email FROM customer WHERE first_name = 'Daan' and last_name = 'Peeters' UNION SELECT email FROM employee WHERE first_name = 'Daan' and last_name = 'Peeters';"
         },
         {
             "input": "How many employees are there?",
@@ -50,6 +50,10 @@
         {
             "input": "How many employees work as IT Staff?",
             "query": "SELECT COUNT(*) FROM employee WHERE title = 'IT STaff';"
+        },
+        {
+            "input": "How long is the song Dog Eat Dog in seconds?",
+            "query": "SELECT milliseconds/1000 FROM track WHERE name = 'Dog Eat Dog';"
         }
     ]
 }

@@ -52,5 +52,5 @@ python -m pip install -r requirements.txt
 To start interacting with your databases, it is assumed that you can provide a connection to the server. 
 TODO: Follow the instructions and enjoy!
 ```
-python main.py
+python main.py [-h] [-s] PATH_TO_YOUR_EXAMPLES_JSON
 ```
