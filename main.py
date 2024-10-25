@@ -156,7 +156,7 @@ def main_loop( args ):
 
     # Summarize main parameters
     print(60 * '-')
-    print('[create_sql_query_chain + SQL examples]')
+    print('[SQL examples -> SQL generating chain -> Response chain]')
     print(f'{'[LangChain Version]':.<30} {langchain.__version__}')
     print(f'{'[Language Model]':.<30} {model_name}')
     print(f'{'[Embeddings Model]':.<30} {APPCFG.embedding_model}')
