@@ -14,30 +14,40 @@ optional arguments:
     
 Author:   Boris Duran
 Email:    boris@yodir.com
-Created:  2024-10-21
+Created:  2024-10-25
 '''
 
 import re
 import requests
+import json
 import environ
+import argparse
+
 import langchain
 from langchain_ollama import ChatOllama
+from langchain_ollama import OllamaEmbeddings
 from langchain.chains import create_sql_query_chain
 from langchain_community.utilities import SQLDatabase
 from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import FewShotPromptTemplate, PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
+from langchain_community.vectorstores import FAISS
+from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 
 from operator import itemgetter
 
+from utils.load_config import LoadConfig
+
 env = environ.Env()
-environ.Env.read_env()
+environ.Env.read_env('utils/.env')
+
+APPCFG = LoadConfig()
 
 def get_model():
-    """Shows a list of available LLMs and returns the user's selection .
+    """Shows a list of available Ollama LLMs and returns the user's selection .
     Args:
-      List: A List of available Ollama models in host
+      None
     Returns:
       String: Name of the selected chat model.
     """
@@ -61,83 +71,20 @@ def get_model():
 
     return model_name
 
-def main_sql():
-    """Main loop: Simplest approach, using 'create_sql_query_chain' and a basic prompt 
-                template plus a list of examples of pairs of questions and their right
-                sql queries.
+def get_sql_chain(llm, db, query_txt, examples_path):
+    """Generates the SQL query to be executed in the final chain
     Args:
-      ArgParse: a container for argument specifications
+      LLM:          The language model selected from the Ollama server
+      SQLDatabase:  The postgres database to query
+      String:       The question ask in natural language
+      Dict:         A dictionary with example questions and their SQL queries
     Returns:
-      None
+      String:       The generated SQL query
     """
-    model_name = get_model()
-
-    print(60 * '-')
-    print('[create_sql_query_chain + examples + prompt template]')
-    print('[LangChain]', langchain.__version__)
-    print('[LangModel]', model_name)
-    print('===> Press Ctrl+C to exit! <===')
-
-    # Initialize LLM
-    llm = ChatOllama( model = model_name, temperature=0 )
-
-    # Setup database
-    db = SQLDatabase.from_uri(
-        f"postgresql+psycopg2://postgres:{env('DBPASS')}@localhost:5432/{env('DATABASE')}" # , schema='dbo'
-    )
-
-    # Write some guiding examples
-    examples = [
-        {"input": "List all artists.", "query": "SELECT * FROM artist;"},
-        {
-            "input": "Find all albums for the artist 'AC/DC'.",
-            "query": "SELECT * FROM album WHERE artist_id = (SELECT artist_id FROM artist WHERE name = 'AC/DC');",
-        },
-        {
-            "input": "List all tracks in the 'Rock' genre.",
-            "query": "SELECT * FROM track WHERE genre_id = (SELECT genre_id FROM genre WHERE name = 'Rock');",
-        },
-        {
-            "input": "Find the total duration of all tracks.",
-            "query": "SELECT SUM(milliseconds) FROM track;",
-        },
-        {
-            "input": "List all customers from Canada.",
-            "query": "SELECT * FROM customer WHERE country = 'Canada';",
-        },
-        {
-            "input": "How many tracks are there in the album 'Body Count'?",
-            "query": "SELECT COUNT(*) FROM track WHERE album_id = (SELECT album_id FROM album WHERE title = 'Body Count');",
-        },
-        {
-            "input": "Find the total number of invoices.",
-            "query": "SELECT COUNT(*) FROM invoice;",
-        },
-        {
-            "input": "List all tracks that are longer than 5 minutes.",
-            "query": "SELECT * FROM track WHERE milliseconds > 300000;",
-        },
-        {
-            "input": "Who are the top 5 customers by total purchase?",
-            "query": "SELECT customer_id, SUM(total) AS TotalPurchase FROM invoice GROUP BY customer_id ORDER BY TotalPurchase DESC LIMIT 5;",
-        },
-        {
-            "input": "What is the address of Jane Peacock?",
-            "query": "SELECT address, city, state, postal_code, country FROM employee WHERE first_name = 'Jane' and last_name = 'Peacock' UNION SELECT address, city, state, postal_code, country FROM customer WHERE first_name = 'Jane' and last_name = 'Peacock';",
-        },
-        {
-            "input": "What is the email of Daan Peeters?",
-            "query": "SELECT email FROM customer WHERE first_name = 'Daan' and last_name = 'Peeters';",
-        },
-        {
-            "input": "How many employees are there?",
-            "query": "SELECT COUNT(*) FROM employee;",
-        },
-        {
-            "input": "How many employees work as IT Staff?",
-            "query": "SELECT COUNT(*) FROM employee WHERE title = 'IT STaff';",
-        },
-    ]
+    # Opening JSON file
+    with open( examples_path ) as examples_file:
+        all_examples = json.load(examples_file)
+        sql_examples = all_examples['Chinook']
 
     # Create a FewShotPromptTemplate
     example_prompt = PromptTemplate(
@@ -145,50 +92,83 @@ def main_sql():
         template="Input: {input}\nOutput: {query};"
     )
 
-    template = """
-        You are a postgresql expert. Given an input question, first create a syntactically correct postgresql query to run, then look at the results of the query and return the answer.
-        Unless the user specifies in the question a specific number of examples to obtain, query for at most {top_k} results using the LIMIT clause as per postgresql. You can order the results to return the most informative data in the database.
-        Never query for all columns from a table. You must query only the columns that are needed to answer the question. Wrap each column name in single quotes (') to denote them as delimited identifiers.
-        Pay attention to use only the column names you can see in the tables below. Be careful to not query for columns that do not exist. Also, pay attention to which column is in which table.
+    # Create a semantic similarity example selector from the provided examples
+    example_selector = SemanticSimilarityExampleSelector.from_examples(
+        examples        = sql_examples,
+        embeddings      = OllamaEmbeddings(model=APPCFG.embedding_model),
+        vectorstore_cls = FAISS,
+        k               = 5,
+        input_keys      = ["input"],
+    )
 
-        Only use the following tables: {table_info}.
-    """
+    # Create a prompt template guided by examples
     prompt = FewShotPromptTemplate(
         example_prompt  = example_prompt,
-        examples        = examples,
-        prefix          = template,
+        example_selector= example_selector,
+        # examples        = examples,
+        prefix          = APPCFG.template_query,
         suffix          = "Question: {input}\nOutput:", 
         input_variables = ["input", "top_k", "table_info"],
     )
 
-    def get_sql( query ):
-        response = re.search("(SELECT.*);", query.replace("\n", " ")) #.group(1)
+    # Function for defining a proper SQL query
+    def get_sql( raw_query ):
+        # print(f'\n[SQL(raw)] {raw_query}')
+        response = re.search("(SELECT.*);", raw_query.replace("\n", " "))
         if response == None:
-            response = query
+            response = raw_query
         else:
             response = response.group(1)
+        # print(f'[SQL(out)] {response}')
 
         return response
 
     write_query = create_sql_query_chain(llm, db, prompt)
-    execute_query = QuerySQLDataBaseTool(db=db)
-    answer_prompt = PromptTemplate.from_template(
-        """Given the following user question, corresponding SQL query, and SQL result, answer the user question.
+    raw_query = write_query.invoke({"question": query_txt})
+    sql_query = get_sql(raw_query)
 
-    Question: {question}
-    SQL Query: {query}
-    SQL Result: {result}
-    Answer: """
-    )
+    return sql_query
+
+def main_loop( args ):
+    """Main loop: Using 'create_sql_query_chain' and a basic prompt 
+                template plus a list of examples of pairs of questions 
+                and their right sql queries.
+    Args:
+      ArgParse: a container for argument specifications
+    Returns:
+      None
+    """
+    # Ask for the LLM to use
+    model_name = get_model()
+    
+    # Read the path to the examples file.
+    examples_path = args.examples # abs_path + '/utils/sql_examples.json'
+
+    # Summarize main parameters
+    print(60 * '-')
+    print('[create_sql_query_chain + SQL examples]')
+    print(f'{'[LangChain Version]':.<30} {langchain.__version__}')
+    print(f'{'[Language Model]':.<30} {model_name}')
+    print(f'{'[Embeddings Model]':.<30} {APPCFG.embedding_model}')
+    print(f'{'[SQL examples]':.<30} {examples_path}')
+
+    # Initialize LLM
+    llm = ChatOllama( model = model_name, temperature=0 )
+
+    # Setup database
+    uri_conn = f"postgresql+psycopg2://{env('DB_USER')}:{env('DB_PASS')}@localhost:{env('DB_PORT')}/{env('DB_NAME')}"
+    db = SQLDatabase.from_uri( uri_conn )
+
+    execute_query = QuerySQLDataBaseTool(db=db)
+    answer_prompt = PromptTemplate.from_template( APPCFG.template_answer )
     
     try:
         while True:
             print(60 * '-', '\n')
             query_txt = input( f'Enter your question (Ctrl+C to exit!): ' )
             print()
-            raw_query = write_query.invoke({"question": query_txt})
-            sql_query = get_sql(raw_query)
-            print(f'[SQL] {sql_query}')
+            sql_query = get_sql_chain(llm, db, query_txt, examples_path)
+            if args.sql: print(f'[SQL] {sql_query}')
             full_chain = (
                 RunnablePassthrough.assign( result=itemgetter("query") | execute_query )
                 | answer_prompt
@@ -203,12 +183,20 @@ def main_sql():
     print()
     
     return
+
 if __name__ == '__main__':
     print(80 * '-')
-    print("YARS: Yet Another RAG Script".center(80))
+    print("YARS: Yet Another Retrieval Script".center(80))
     print(80 * '-')
 
-    main_sql( )
+    parser = argparse.ArgumentParser(description='Chat with your documents')
+    parser.add_argument('examples', #required=True, 
+        help='Path to a JSON file with SQL examples.')
+    parser.add_argument('-s', '--sql', action='store_true', default=False, 
+        help='Show the generated SQL query!')
+
+    args = parser.parse_args()
+    main_loop( args )
 
     print(80 * '-')
     print("The end!".center(80))
