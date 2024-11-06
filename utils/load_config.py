@@ -16,6 +16,7 @@ class LoadConfig:
         self.template_chat = app_config["llm_config"]["template_chat"]
         self.template_query = app_config["llm_config"]["template_query"]
         self.template_answer = app_config["llm_config"]["template_answer"]
+        self.template_agent = app_config["llm_config"]["template_agent_alone"]
         # self.rag_llm_system_role = app_config["llm_config"]["rag_llm_system_role"]
         self.temperature = app_config["llm_config"]["temperature"]
         self.embedding_model = "mxbai-embed-large" # os.getenv("embed_deployment_name")

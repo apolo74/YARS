@@ -1,9 +1,9 @@
-
 ''' Chat with SQL database using Ollama 
-endpoints and LangChain libraries.
+endpoints and LangChain/LangGraph libraries.
 
 Notes:
-    Important -> Using Langchain V0.3!!!
+    - Important -> Using Langchain V0.3.3!!!
+    - Important -> Works well with llama3.2:3b
 
 Usage:    
     main.py [-h] [-s] examples
@@ -18,7 +18,7 @@ Usage:
     
 Author:   Boris Duran
 Email:    boris@yodir.com
-Created:  2024-10-25
+Created:  2024-11-06
 '''
 
 import re
@@ -28,18 +28,17 @@ import environ
 import argparse
 
 import langchain
-from langchain_ollama import ChatOllama
-from langchain_ollama import OllamaEmbeddings
-from langchain.chains import create_sql_query_chain
+from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_community.utilities import SQLDatabase
-from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import FewShotPromptTemplate, PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.vectorstores import FAISS
-from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 
-from operator import itemgetter
+from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
+from langchain_core.example_selectors import SemanticSimilarityExampleSelector
+from langchain_core.prompts import FewShotPromptTemplate, PromptTemplate
+from langchain_core.messages import HumanMessage
+from langgraph.prebuilt import create_react_agent
 
 from utils.load_config import LoadConfig
 
@@ -75,7 +74,7 @@ def get_model():
 
     return model_name
 
-def get_sql_chain(llm, db, query_txt, examples_path):
+def get_sql_query(llm, db, query_txt, examples_path):
     """Generates the SQL query to be executed in the final chain
     Args:
       LLM:          The language model selected from the Ollama server
@@ -89,7 +88,7 @@ def get_sql_chain(llm, db, query_txt, examples_path):
     with open( examples_path ) as examples_file:
         all_examples = json.load(examples_file)
         sql_examples = all_examples['Chinook']
-
+    
     # Create a FewShotPromptTemplate
     example_prompt = PromptTemplate(
         input_variables=["input", "output"],
@@ -106,7 +105,7 @@ def get_sql_chain(llm, db, query_txt, examples_path):
     )
 
     # Create a prompt template guided by examples
-    prompt = FewShotPromptTemplate(
+    few_shot_prompt = FewShotPromptTemplate(
         example_prompt  = example_prompt,
         example_selector= example_selector,
         # examples        = examples,
@@ -115,32 +114,52 @@ def get_sql_chain(llm, db, query_txt, examples_path):
         input_variables = ["input", "top_k", "table_info"],
     )
 
+    # Define the chain for generating the SQL query
+    sql_chain = (
+        RunnablePassthrough.assign(table_info=lambda _: db.get_table_info())
+        | few_shot_prompt
+        | llm
+        | StrOutputParser()
+    )
+
     # Function for defining a proper SQL query
-    def get_sql( raw_query ):
-        # print(f'\n[SQL(raw)] {raw_query}')
+    def extract_sql( raw_query ):
         response = re.search("(SELECT.*);", raw_query.replace("\n", " "))
         if response == None:
             response = raw_query
         else:
-            response = response.group(1)
-        # print(f'[SQL(out)] {response}')
+            response = f'{response.group(1)};'
 
         return response
 
-    # Define the chain for generating the SQL query
-    sql_chain = (
-        RunnablePassthrough.assign(table_info=lambda _: db.get_table_info())
-        | prompt
-        | llm
-        | StrOutputParser()
-    )
     raw_query = sql_chain.invoke({"input": query_txt, "top_k": 5})
-    sql_query = get_sql(raw_query)
+    sql_query = extract_sql(raw_query)
 
     return sql_query
+    
+def get_agent_answer(llm, tools, sql_query):
+    # Create a react agent
+    system_prompt = """You are a helpful postgres agent named Burrito.
+        Your job is to respond in natural language using the results of executing the SQL query. 
+        Personal names should be enclosed between double quotes.
+    """
+    agent = create_react_agent(llm, tools, state_modifier=system_prompt)
+
+    events = agent.stream({"messages": [("user", sql_query)]}, stream_mode='messages')
+    for msg, metadata in events:
+        # print(f'[msg] {msg} \n[mData] {metadata}\n')
+        if (
+            msg.content
+            and not isinstance(msg, HumanMessage)
+            and metadata["langgraph_node"] == "agent"
+        ):
+            print(msg.content, end="", flush=True)
+    print()
+
+    return
 
 def main_loop( args ):
-    """Main loop: Using 'create_sql_query_chain' and a basic prompt 
+    """Main loop: Using 'create_react_agent' and a basic prompt 
                 template plus a list of examples of pairs of questions 
                 and their right sql queries.
     Args:
@@ -152,7 +171,7 @@ def main_loop( args ):
     model_name = get_model()
     
     # Read the path to the examples file.
-    examples_path = args.examples # abs_path + '/utils/sql_examples.json'
+    examples_path = args.examples
 
     # Summarize main parameters
     print(60 * '-')
@@ -168,26 +187,18 @@ def main_loop( args ):
     # Setup database
     uri_conn = f"postgresql+psycopg2://{env('DB_USER')}:{env('DB_PASS')}@localhost:{env('DB_PORT')}/{env('DB_NAME')}"
     db = SQLDatabase.from_uri( uri_conn )
-
-    execute_query = QuerySQLDataBaseTool(db=db)
-    answer_prompt = PromptTemplate.from_template( APPCFG.template_answer )
+    sql_toolkit = SQLDatabaseToolkit(db=db, llm=llm)
+    tools = sql_toolkit.get_tools()
     
     try:
         while True:
             print(60 * '-', '\n')
             query_txt = input( f'Enter your question (Ctrl+C to exit!): ' )
             print()
-            sql_query = get_sql_chain(llm, db, query_txt, examples_path)
+            # Get the SQL query
+            sql_query = get_sql_query(llm, db, query_txt, examples_path)
             if args.sql: print(f'[SQL] {sql_query}')
-            full_chain = (
-                RunnablePassthrough.assign( result=itemgetter("query") | execute_query )
-                | answer_prompt
-                | llm
-                | StrOutputParser()
-            )
-            for chunk in full_chain.stream( {"question": query_txt, "query": sql_query} ):
-                print(chunk, end="", flush=True)
-            print()
+            get_agent_answer(llm, tools, sql_query)
     except KeyboardInterrupt:
         print('Bye!')
     print()
