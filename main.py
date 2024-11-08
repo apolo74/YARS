@@ -35,7 +35,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.vectorstores import FAISS
 
-from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
+# from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 from langchain_core.prompts import FewShotPromptTemplate, PromptTemplate
 
