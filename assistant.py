@@ -1,8 +1,7 @@
 
 from dataclasses import dataclass
 
-from langchain_community.chat_models import ChatOllama
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_ollama import ChatOllama, OllamaEmbeddings
 
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyMuPDFLoader
@@ -29,7 +28,7 @@ class Assistant:
         """
         Initializes an instance of the class with the given parameters.
         """
-        self.model_name = 'phi3:latest'
+        self.model_name = 'llama3.2:1b'
         self.temperature = 0
 
         self.llm = ChatOllama( model = self.model_name )
@@ -66,7 +65,7 @@ class Assistant:
         self.temperature = temp
         self.llm = ChatOllama(model=self.model_name, temperature=self.temperature)
 
-        print('Model temperature: ', self.temperature)
+        print(f'[Temp] {self.temperature}')
 
         return
 
@@ -80,7 +79,7 @@ class Assistant:
         self.model_name = model
         self.llm = ChatOllama(model=self.model_name, temperature=self.temperature)
 
-        print('Working with: ', self.llm)
+        print(f'[Model] {self.llm.model}')
 
         return
 
