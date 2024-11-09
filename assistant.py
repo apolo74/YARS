@@ -105,6 +105,8 @@ class Assistant:
     def clear_pdf(self):
         self.with_context = False
 
+        return None
+
     def respond(self, question, history):
 
         if self.with_context:

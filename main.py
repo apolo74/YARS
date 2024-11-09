@@ -11,7 +11,7 @@ optional arguments:
     
 Author:   Boris Duran
 Email:    boris@yodir.com
-Created:  2024-11-08
+Created:  2024-11-09
 '''
 
 import requests
@@ -37,11 +37,13 @@ def main_loop():
         css=".contain { display: flex !important; flex-direction: column !important; }"
         "#component-0, #component-3, #component-10, #component-8  { height: 100% !important; }"
         "#chatbot { flex-grow: 1 !important; overflow: auto !important;}"
-        "#col { height: calc(100vh - 170px) !important; }"
+        "#col { height: calc(100vh - 170px) !important; "
+        ".message-row img {margin: 0px !important;}"
+        ".avatar-container img {padding: 0px !important;}"
     ) as all_blocks:                    
         gr.Markdown("""
-                        # <div style="text-align: right"> YARS: </div>
-                        ## <div style="text-align: right"> Yet Another Retrieval Script</div>
+                        # <div style="text-align: left; color:SteelBlue;"> [ YARS ] </div>
+                        ## <div style="text-align: left"> Yet Another Retrieval Script</div>
                     """)
         with gr.Column(elem_classes=["container"]):   
             with gr.Row():
@@ -60,7 +62,8 @@ def main_loop():
                     # Bottom: File ingestion                 
                     with gr.Row():
                         tb_file = gr.File(label="File", file_count='single', file_types=['.pdf'])
-                        # tb_url = gr.Textbox(label="URL")
+                    tb_file.upload(assistant.ingest_pdf, tb_file, st_void, show_progress='full')
+                    tb_file.clear(assistant.clear_pdf)
 
                 # Main area: Chat interface
                 with gr.Column(scale=5, elem_id='col'):
@@ -71,6 +74,7 @@ def main_loop():
                             height=500, 
                             type="messages",
                             bubble_full_width=False, 
+                            avatar_images=( ("images/human.png", "images/chatbot.png") ),
                             render=False, 
                             elem_id="chatbot"
                         ),
@@ -78,14 +82,12 @@ def main_loop():
                         theme=gr.themes.Default(primary_hue="purple", secondary_hue="indigo"),
                     )
             
-            tb_file.upload(assistant.ingest_pdf, tb_file, show_progress='full')
-            tb_file.clear(assistant.clear_pdf)
     
     return all_blocks.launch()
 
 if __name__ == '__main__':
     print(80 * '-')
-    print("YARS: Yet Another RAG Script".center(80))
+    print("YARS: Yet Another Retrieval Script".center(80))
     print(80 * '-')
 
     main_loop()
