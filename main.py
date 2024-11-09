@@ -16,16 +16,14 @@ required arguments:
     
 Author:   Boris Duran
 Email:    boris@yodir.com
-Created:  2024-07-01
+Created:  2024-11-09
 '''
 
 import os
 import argparse
-import getpass
 import requests
 
-from langchain_community.chat_models import ChatOllama
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_ollama import ChatOllama, OllamaEmbeddings
 
 from langchain_community.vectorstores import FAISS
 from langchain_community.document_loaders import PyMuPDFLoader
@@ -33,13 +31,17 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 
-def get_model( models ):
-    """Shows a list of available LLMs and returns the user's selection .
+def get_model():
+    """Shows a list of available Ollama LLMs and returns the user's selection .
     Args:
-      List: A List of available Ollama models in host
+      None
     Returns:
       String: Name of the selected chat model.
     """
+    local_models = requests.get('http://localhost:11434/api/tags').json()
+
+    models = local_models['models']
+
     models_list = []
     for ix, model in enumerate(models):
         models_list.append(model['name'])
@@ -49,7 +51,7 @@ def get_model( models ):
         models_dict[ix] = model
         print(f'{ix:>3}: {model}')
 
-    model_ix = int( input( f'Choose your LLM: ' ) )
+    model_ix = int( input( f'Choose your Model (0-{ix}): ' ) )
     if model_ix < len(models_dict): 
         ix_exist = True
         model_name = models_dict[model_ix]
@@ -95,17 +97,20 @@ def main_loop( args ):
     Returns:
       None
     """
-    local_models = requests.get('http://localhost:11434/api/tags').json()
+    # Ask for the LLM to use
+    model_name = get_model()
 
-    model_name = get_model( local_models['models'] )
-
+    # Summarize main parameters
     print(60 * '-')
-    print('Working with model:', model_name)
-    print('===> Press Ctrl+C to exit! <===')
+    print('[SQL examples -> SQL generating chain -> Response chain]')
+    print(f'{'[Language Model]':.<30} {model_name}')
+    print(f'{'[SQL examples]':.<30} {args.document}')
 
-    llm = ChatOllama( model = model_name )
+    # Initialize LLM
+    llm = ChatOllama( model = model_name, temperature=0 )
+    # Initialize Embeddings
     emb = OllamaEmbeddings(model="mxbai-embed-large")
-
+    # Read the documents
     docs = get_pdf_langchain( args.document )
 
     vectorstore = FAISS.from_documents( docs, emb )
@@ -126,20 +131,21 @@ def main_loop( args ):
     try:
         while True:
             print(60 * '-', '\n')
-            query_txt = input( f'Enter your prompt (Ctrl+C to exit!): ' )
-            print()
+            print( 'Enter your question (Ctrl+C to exit!) ' )
+            query_txt = input( '[Question] ' )
+            print(f'[ Answer ] ', end='', flush=True)
             for chunk in chain.stream( query_txt ):
                 print(chunk, end="", flush=True)
             print()
     except KeyboardInterrupt:
         print('Bye!')
     print()
-    ''' '''
+
     return
 
 if __name__ == '__main__':
     print(80 * '-')
-    print("YARS: Yet Another RAG Script".center(80))
+    print("YARS: Yet Another Retrieval Script".center(80))
     print(80 * '-')
 
     parser = argparse.ArgumentParser(description='Chat with your documents')
