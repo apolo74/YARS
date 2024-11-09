@@ -18,7 +18,7 @@ Usage:
     
 Author:   Boris Duran
 Email:    boris@yodir.com
-Created:  2024-11-06
+Created:  2024-11-08
 '''
 
 import re
@@ -35,7 +35,6 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.vectorstores import FAISS
 
-# from langchain_community.agent_toolkits.sql.toolkit import SQLDatabaseToolkit
 from langchain_core.example_selectors import SemanticSimilarityExampleSelector
 from langchain_core.prompts import FewShotPromptTemplate, PromptTemplate
 
@@ -174,11 +173,13 @@ def main_loop( args ):
     try:
         while True:
             print(60 * '-', '\n')
-            query_txt = input( f'Enter your question (Ctrl+C to exit!): ' )
-            print()
+            print( 'Enter your question (Ctrl+C to exit!) ' )
+            query_txt = input( '[Question] ' )
             # Get the SQL query
             sql_query = get_sql_query(llm, db, query_txt, examples_path)
-            if args.sql: print(f'[SQL] {sql_query}')
+            if args.sql: print(f'[   SQL  ] {sql_query}')
+            print(f'[ Answer ]', end='', flush=True)
+            # Define the answer chain
             full_chain = (
                 RunnablePassthrough.assign( result=itemgetter("query") | execute_query )
                 | answer_prompt
@@ -200,8 +201,7 @@ if __name__ == '__main__':
     print(80 * '-')
 
     parser = argparse.ArgumentParser(description='Chat with your documents')
-    parser.add_argument('examples', #required=True, 
-        help='Path to a JSON file with SQL examples.')
+    parser.add_argument('examples', help='Path to a JSON file with SQL examples.')
     parser.add_argument('-s', '--sql', action='store_true', default=False, 
         help='Show the generated SQL query!')
 
