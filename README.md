@@ -56,7 +56,10 @@ These instructions will get you a copy of the project up and running on your loc
 - Finally, the file *utils/.env_example* contains the variables necessary to connect to your database. You should either edit and rename that file into *utils/.env* or create a new file named *utils/.env* with the correct values.
 
 ## Execution
-To start interacting with your databases, just run the call the *main.py* script inside a terminal. The **-s** flag allows you to show the SQL query generated under the first chain to the LLM.
-```
-python main.py [-h] [-s] PATH_TO_YOUR_EXAMPLES_JSON
-```
+- To start interacting with your databases, just run the call the *main.py* script inside a terminal.
+    ```
+    python app.py [-h]
+    ```
+- The script will give you access to a link at your localhost on port 7860 (http://127.0.0.1:7860) assuming you work with Gradio's default values. Just open your favorite browser and write that address in the URL field. Follow the instructions and enjoy!
+
+![image alt](images/ui_screenshot.png)

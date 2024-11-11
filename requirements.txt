@@ -1,6 +1,9 @@
+requests
 langchain
 langchain-community 
 langchain-core
 langchain-ollama
 psycopg2
 python-environ
+gradio
+faiss-cpu

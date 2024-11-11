@@ -55,5 +55,10 @@
             "input": "How long is the song Dog Eat Dog in seconds?",
             "query": "SELECT milliseconds/1000 FROM track WHERE name = 'Dog Eat Dog';"
         }
+    ],
+    "Movies": [
+        {   "input": "List all movies", 
+            "query": "SELECT * FROM movies;"
+        }
     ]
 }

@@ -6,7 +6,7 @@ abs_path = os.path.dirname(__file__) #<-- absolute dir the script is in
 
 class LoadConfig:
     def __init__(self) -> None:
-        with open(abs_path + "/app_config.yml") as cfg:
+        with open(abs_path + "/prompts.yml") as cfg:
             app_config = yaml.load(cfg, Loader=yaml.FullLoader)
 
         self.load_llm_configs(app_config=app_config)
