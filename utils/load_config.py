@@ -14,6 +14,7 @@ class LoadConfig:
     def load_llm_configs(self, app_config):
         # self.model_name = "llama3.2:1b" # os.getenv("gpt_deployment_name")
         self.template_chat = app_config["llm_config"]["template_chat"]
+        self.template_context = app_config["llm_config"]["template_context"]
         self.template_query = app_config["llm_config"]["template_query"]
         self.template_answer = app_config["llm_config"]["template_answer"]
         self.template_agent = app_config["llm_config"]["template_agent_alone"]

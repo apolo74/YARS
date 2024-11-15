@@ -5,5 +5,12 @@ langchain-core
 langchain-ollama
 psycopg2
 python-environ
+pymupdf
 gradio
 faiss-cpu
+#diffusers
+#transformers
+#accelerate
+#protobuf
+#sentencepiece
+openai

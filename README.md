@@ -53,6 +53,11 @@ These instructions will get you a copy of the project up and running on your loc
     python -m pip install -r requirements.txt
     ```
 
+- The generation of images works with PyTorch and it is computationally expensive. Ideally you'll have this repository running on a powerful enough system with a GPU. You'll find a configuration tool at this [PyTorch URL](https://pytorch.org/get-started/locally/#start-locally), select *Your OS* and your *Compute Platform*. Copy the final command at the bottom of the configuration tool and run it after the previous step. As an example of a Windows OS and CUDA 12.4 I'd run the following line:
+    ```
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+    ```
+
 - Finally, the file *utils/.env_example* contains the variables necessary to connect to your database. You should either edit and rename that file into *utils/.env* or create a new file named *utils/.env* with the correct values.
 
 ## Execution

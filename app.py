@@ -12,50 +12,65 @@ def main_loop():
     """
     assistant = Assistant()    
     local_models = requests.get('http://localhost:11434/api/tags').json()
-    models = assistant.get_models_list(local_models['models'])
+    llm_models, emb_models = assistant.get_models_list(local_models['models'])
 
     # Define UI
     PLACE_HOLDER = "Ask me something!"
-    with gr.Blocks(
-        title='YARS',
-        css=".contain { display: flex !important; flex-direction: column !important; }"
-        "#component-0, #component-3, #component-10, #component-8  { height: 100% !important; }"
-        "#chatbot { flex-grow: 1 !important; overflow: auto !important;}"
-        "#col { height: calc(100vh - 170px) !important; }"
-        ".message-row img {margin: 0px !important;}"
-        ".avatar-container img {padding: 0px !important;}"
-    ) as demo:                        
+    css = """
+        .contain { display: flex !important; flex-direction: column !important; }
+        #component-0, #component-3, #component-10, #component-8  { height: 100% !important; }
+        #chatbot { flex-grow: 1 !important; overflow: auto !important;}
+        .chatbot.prose.md {opacity: 1.0 ! important}
+        #col { height: calc(100vh - 170px) !important; }
+        .message-row img {margin: 0px !important;}
+        .avatar-container img {padding: 0px !important;}
+    """
+    with gr.Blocks( title='YARS', css=css ) as demo:                        
         gr.Markdown("""
-                        # <div style="text-align: left; color:DarkOrange;"> [ YARS ] </div>
-                        ### <div style="text-align: left"> Yet Another Retrieval Script </div>
-                    """)
+            # <div style="text-align: left; color:DarkOrange;"> [ YARS ] </div>
+            ### <div style="text-align: left"> Yet Another Retrieval Script </div>
+        """)
         with gr.Column(elem_classes=["container"]):   
             with gr.Row():
                 # Left area: Parameters
                 with gr.Column(scale=1, min_width=200):
                     st_void = gr.State()
                     
-                    # Top: Dropdown menu for choosing LLM models and temperature
+                    # Left panel: running configuration parameters
                     with gr.Row():
-                        dd_model = gr.Dropdown(choices=models, value='llama3.2:1b', label="Model", interactive=True)
-                        # dd_embedder = gr.Dropdown(["nomic", "phi3"], label="Embedders")
-                        sl_temp = gr.Slider(value=0, minimum=0, maximum=1, step=0.1, label="Temperature")
-                    dd_model.change(assistant.change_model, dd_model, st_void)
-                    sl_temp.change(assistant.change_temperature, sl_temp, st_void)
-
-                    # Bottom: Radio buttons for choosing between chat with LLM or chat with database
-                    with gr.Row():
-                        chat_mode = gr.Radio(["LLM", "SQL"], value='LLM', show_label=False, info="Q&A with:") # label="Chat mode",
+                        chat_mode = gr.Radio(["LLM", "SQL", "RAG", "T2I"], value='LLM', show_label=False, label="Chat mode:")
                         chat_mode.change(assistant.change_mode, chat_mode, st_void)
                         @gr.render(inputs=chat_mode)
                         def show_split(chat_mode):
+                            # LLM parameters:
+                            dd_model = gr.Dropdown(choices=llm_models, value=assistant.llm_model_name, label="Model", interactive=True)
+                            dd_model.change(assistant.change_llm_model, dd_model, st_void)
+                            sl_temp = gr.Slider(value=0, minimum=0, maximum=1, step=0.1, label="Temperature")
+                            sl_temp.change(assistant.change_temperature, sl_temp, st_void)
+                            # SQL parameters:
                             dd_mode = gr.Dropdown(choices=['Chinook', 'Movies'], value='Chinook', label='Database', interactive=True, visible=False)
+                            dd_mode.change(assistant.change_database, dd_mode, st_void)
                             cb_verbose = gr.Checkbox(False, label='Verbose', visible=False )
-                            if chat_mode == "SQL":
-                                dd_mode.visible = True
-                                cb_verbose.visible = True
-                            # dd_mode.change(assistant.change_database, dd_mode, st_void)
                             cb_verbose.change(assistant.change_verbose, cb_verbose, st_void)
+                            # RAG parameters:
+                            dd_embedder = gr.Dropdown(choices=emb_models, value='mxbai-embed-large', label="Embedders", visible=False)
+                            dd_embedder.change( assistant.change_emb_model, dd_embedder, st_void)
+                            tb_file = gr.File(label="File", file_count='single', file_types=['.pdf'], visible=False)
+                            tb_file.upload(assistant.ingest_pdf, tb_file, st_void, show_progress='full')
+                            tb_file.clear(assistant.clear_pdf)
+
+                            if chat_mode == "SQL":
+                                dd_mode.visible     = True
+                                cb_verbose.visible  = True
+                            elif chat_mode == "RAG":
+                                dd_embedder.visible = True
+                                tb_file.visible     = True
+                            elif chat_mode == "T2I":
+                                dd_model.visible    = False
+                                sl_temp.visible     = False
+                            else:
+                                dd_model.visible    = True
+                                sl_temp.visible     = True
 
                 # Main area: Chat interface
                 with gr.Column(scale=5, elem_id='col'):
