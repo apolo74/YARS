@@ -11,7 +11,6 @@ from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.utilities import SQLDatabase
 from langchain_community.document_loaders import PyMuPDFLoader
-# from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, FewShotPromptTemplate 
 from langchain_core.runnables import RunnablePassthrough
@@ -31,10 +30,6 @@ APPCFG = LoadConfig()
 @dataclass
 class Assistant:
     """ Assistant Class"""
-    #docs: list
-    #pdf_path: str
-    #index_path: str
-    #k:int = DEFAULT_K
     with_database: bool = False
     with_images: bool = False
     with_context: bool = False
@@ -68,7 +63,7 @@ class Assistant:
 
         # Setup database
         self.db = SQLDatabase.from_uri(
-            f"postgresql+psycopg2://{env('DB_USER01')}:{env('DB_PASS01')}@localhost:{env('DB_PORT01')}/{env('DB_NAME01')}" # , schema='dbo'
+            f"postgresql+psycopg2://{env('DB_USER01')}:{env('DB_PASS01')}@localhost:{env('DB_PORT01')}/{env('DB_NAME01')}"
         )
 
         # Opening JSON file
@@ -180,7 +175,7 @@ class Assistant:
         self.sql_examples = self.all_examples[db_name]
         db_uri = f"{SUFFIX}://{DBUSER}:{DBPASS}@localhost:{DBPORT}/{DBNAME}"
 
-        self.db = SQLDatabase.from_uri(db_uri) # , schema='dbo'    )
+        self.db = SQLDatabase.from_uri(db_uri)
         print(f'[ DB  ] {db_name}')
 
         return
@@ -222,13 +217,11 @@ class Assistant:
 
         # Define the chain for generating the SQL query
         def extract_sql( raw_query ):
-            # print(f'\n[SQL(raw)] {raw_query}')
             response = re.search("(SELECT.*);", raw_query.replace("\n", " "))
             if response == None:
                 response = raw_query
             else:
                 response = f'{response.group(1)}'
-            # print(f'[SQL(out)] {response}')
 
             return response
 
@@ -239,9 +232,6 @@ class Assistant:
             | self.llm
             | StrOutputParser()
         )
-
-        # write_query = create_sql_query_chain(self.llm, db, prompt)
-        # raw_query = write_query.invoke({"question": query_txt})
         raw_query = sql_chain.invoke({"input": query_txt, "top_k": 5})
         sql_query = extract_sql(raw_query)
 
@@ -298,12 +288,6 @@ class Assistant:
                 response_format = 'b64_json'
             )
             img_base64 = response.data[0].b64_json
-
-            '''
-            with open("images/cat_hello.png", "rb") as image_file:
-                buffer = image_file.read() 
-                img_base64 = base64.b64encode(buffer).decode("utf-8")
-            '''
             output = f'<img src="data:image/png;base64,{img_base64}">'
 
             yield output
