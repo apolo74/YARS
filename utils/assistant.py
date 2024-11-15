@@ -262,7 +262,7 @@ class Assistant:
         return None
     
     def respond(self, message, chat_history):
-
+        # Mode: interaction with databases
         if self.with_database:
             answer_prompt = PromptTemplate.from_template( APPCFG.template_answer )
             sql_query = self.get_sql_chain(self.db, message)
@@ -279,7 +279,7 @@ class Assistant:
                 output = output + chunk
 
                 yield output
-
+        # Mode: text-to-image generation
         elif self.with_images:
             response    = self.client.images.generate(
                 prompt          = message,
@@ -291,7 +291,7 @@ class Assistant:
             output = f'<img src="data:image/png;base64,{img_base64}">'
 
             yield output
-
+        # Mode: interaction with PDF documents
         elif self.with_context:
             prompt = ChatPromptTemplate.from_template( APPCFG.template_context )
             
@@ -310,7 +310,7 @@ class Assistant:
                 output = output + chunk
                 
             yield output
-
+        # Mode: open chat with LLMs
         else:
             prompt = ChatPromptTemplate.from_messages([
                 ("system", APPCFG.template_chat),

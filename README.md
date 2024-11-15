@@ -5,6 +5,8 @@ The main goal of this especific branch of YARS is to share a light-weight but po
 
 **YARS** will continue to grow with more functionality, with the target audience being the scientific community. I'll write more about my personal short- and long-term goals of this *chatbot* soon :)
 
+![image alt](images/ui_screenshot.png)
+
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
@@ -53,10 +55,9 @@ These instructions will get you a copy of the project up and running on your loc
     python -m pip install -r requirements.txt
     ```
 
-- The generation of images works with PyTorch and it is computationally expensive. Ideally you'll have this repository running on a powerful enough system with a GPU. You'll find a configuration tool at this [PyTorch URL](https://pytorch.org/get-started/locally/#start-locally), select *Your OS* and your *Compute Platform*. Copy the final command at the bottom of the configuration tool and run it after the previous step. As an example of a Windows OS and CUDA 12.4 I'd run the following line:
-    ```
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
-    ```
+- For the time being, the generation of images works with [ReCraft](https://www.recraft.ai/) which is one of the best, fastest and cheapest Text-to-Image generators at the moment. Once you create your profile, you'll have to create an [API key](https://www.recraft.ai/profile/api) to communicate with them. In case you prefer to use a different image generators you'll have to modify the **client** when initializing the *Assistant* class and the way you generate images inside the *respond* method in [assistant.py](utils/assistant.py).
+
+    Calling an external API implies that you won't be completely offline so my TODO list will include a way of generating images from prompt locally :) This option of course requires a powerful machine to be fast and reliable.
 
 - Finally, the file *utils/.env_example* contains the variables necessary to connect to your database. You should either edit and rename that file into *utils/.env* or create a new file named *utils/.env* with the correct values.
 
@@ -67,4 +68,3 @@ These instructions will get you a copy of the project up and running on your loc
     ```
 - The script will give you access to a link at your localhost on port 7860 (http://127.0.0.1:7860) assuming you work with Gradio's default values. Just open your favorite browser and write that address in the URL field. Follow the instructions and enjoy!
 
-![image alt](images/ui_screenshot.png)
