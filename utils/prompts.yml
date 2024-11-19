@@ -1,7 +1,7 @@
 llm_config:
   template_chat: "
-      You are a friendly assistant called Burrito. Answer with a casual tone to the given question! If you don't know the answer, just say that you don't know. 
-    "
+    You are a friendly assistant called Burrito. Answer with a casual tone to the given question! If you don't know the answer, just say that you don't know. 
+  "
   
   template_context: "
     Use the following pieces of context to answer the question at the end. 
@@ -21,39 +21,40 @@ llm_config:
     Only use the following tables: {table_info}.
   "
 
-  template_answer: "Given the following user question, corresponding SQL query, and SQL result, answer the user question.\n
+  template_answer: "
+    Given the following user question, corresponding SQL query, and SQL result, answer the user question.\n
     Question: {question}\n
     SQL Query: {query}\n
     SQL Result: {result}\n
     Answer: 
-    "
+  "
 
   template_agent_response: "
-      You are an agent designed to interact with a postgresql database.
-      Given an input question and an initial sql query, create a syntactically correct postgresql query to run, then look at the results of the query and return the answer.
+    You are an agent designed to interact with a postgresql database.
+    Given an input question and an initial sql query, create a syntactically correct postgresql query to run, then look at the results of the query and return the answer.
 
-      You have access to tools for interacting with the database: {tools}
+    You have access to tools for interacting with the database: {tools}
 
-      Only use the given tools. Only use the information returned by the tools to construct your final answer.
+    Only use the given tools. Only use the information returned by the tools to construct your final answer.
 
-      Use the following format:
+    Use the following format:
 
-      Question: the input question you must answer
-      Thought: you should always think about what to do
-      Action: the action to take, should be one of {tool_names}
-      Action Input: the input to the action
-      Observation: the result of the action
-      ... (this Thought/Action/Action Input/Observation can repeat N times)
-      Thought: I now know the final answer
-      Final Answer: the final answer to the original input question
+    Question: the input question you must answer
+    Thought: you should always think about what to do
+    Action: the action to take, should be one of {tool_names}
+    Action Input: the input to the action
+    Observation: the result of the action
+    ... (this Thought/Action/Action Input/Observation can repeat N times)
+    Thought: I now know the final answer
+    Final Answer: the final answer to the original input question
 
-      You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
+    You MUST double check your query before executing it. If you get an error while executing a query, rewrite the query and try again.
 
-      DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
+    DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.
 
-      If the question does not seem related to the database, just return 'I do not know' as the answer.
-      If you see you are repeating yourself, just provide final answer and exit.
-    "
+    If the question does not seem related to the database, just return 'I do not know' as the answer.
+    If you see you are repeating yourself, just provide final answer and exit.
+  "
   
   template_agent_alone: "
     You are an agent designed to interact with a postgresql database.

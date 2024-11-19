@@ -38,7 +38,7 @@ def main_loop():
                     
                     # Left panel: running configuration parameters
                     with gr.Row():
-                        chat_mode = gr.Radio(["LLM", "SQL", "RAG", "T2I"], value='LLM', show_label=False, label="Chat mode:")
+                        chat_mode = gr.Radio(["LLM", "SQL", "RAG", "T2I"], value='LLM', label="Chat mode")
                         chat_mode.change(assistant.change_mode, chat_mode, st_void)
                         @gr.render(inputs=chat_mode)
                         def show_split(chat_mode):
