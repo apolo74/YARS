@@ -1,16 +1,17 @@
+import argparse
 import gradio as gr
 import requests
 
 from utils.assistant import Assistant
 
-def main_loop():
+def main_loop(use_db: bool):
     """Main loop where all magic happens!
     Args:
-      None
+      use_db (bool): Whether to enable database functionality.
     Returns:
       None
     """
-    assistant = Assistant()    
+    assistant = Assistant(use_db=use_db)    
     local_models = requests.get('http://localhost:11434/api/tags').json()
     llm_models, emb_models = assistant.get_models_list(local_models['models'])
 
@@ -38,7 +39,16 @@ def main_loop():
                     
                     # Left panel: running configuration parameters
                     with gr.Row():
-                        chat_mode = gr.Radio(["LLM", "SQL", "RAG", "T2I"], value='LLM', label="Chat mode")
+                        # Determine available modes based on use_db flag
+                        available_modes = ["LLM", "RAG", "T2I"]
+                        default_mode = "LLM"
+                        if use_db:
+                            available_modes.insert(1, "SQL") # Insert SQL if DB is enabled
+                        else:
+                            if default_mode == "SQL": # Fallback if default was SQL but DB disabled
+                                default_mode = "LLM"
+
+                        chat_mode = gr.Radio(available_modes, value=default_mode, label="Chat mode")
                         chat_mode.change(assistant.change_mode, chat_mode, st_void)
                         @gr.render(inputs=chat_mode)
                         def show_split(chat_mode):
@@ -94,10 +104,18 @@ if __name__ == "__main__":
     print("YARS: Yet Another Retrieval Script".center(80))
     print(80 * '-')
 
-    main_loop( )
+    # --- Argument Parsing --- 
+    parser = argparse.ArgumentParser(description="YARS: Yet Another Retrieval Script")
+    parser.add_argument(
+        "--use-db",
+        action="store_true",
+        help="Enable database-related features (e.g., SQL mode)."
+    )
+    args = parser.parse_args()
+    # --- End Argument Parsing ---
+
+    main_loop(use_db=args.use_db)
 
     print(80 * '-')
     print("The end!".center(80))
     print(80 * '-')
-
-

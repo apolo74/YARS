@@ -5,8 +5,6 @@ import environ
 
 from openai import OpenAI
 
-from dataclasses import dataclass
-
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.utilities import SQLDatabase
@@ -27,17 +25,17 @@ environ.Env.read_env()
 APPCFG = LoadConfig()
 
 # ======================== Class: LLM Assistant ========================
-@dataclass
 class Assistant:
     """ Assistant Class"""
-    with_database: bool = False
-    with_images: bool = False
-    with_context: bool = False
+    def __init__(self, use_db: bool = False):
+        """ Constructor to store initial flags and initialize the assistant """
+        # --- Store initial flags ---
+        self.use_db = use_db
+        self.with_database = False # Will be updated by change_mode based on self.use_db
+        self.with_context = False
+        self.with_images = False
 
-    def __post_init__(self):
-        """
-        Initializes an instance of the class with the given parameters.
-        """
+        # --- Initialize other attributes (previously in __post_init__) ---
         abs_path = os.path.dirname(__file__) #<-- absolute dir the script is in
         self.verbose = False                # Outputs intermediate steps in the SQL mode
 
@@ -52,24 +50,42 @@ class Assistant:
         # Setup RAG parameters
         self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=20)
         dimensions: int = len(self.emb.embed_query("dummy"))
-        self.index = FAISS(embedding_function=self.emb, 
-                           index=IndexFlatL2(dimensions), 
-                           docstore=InMemoryByteStore(), 
+        self.index = FAISS(embedding_function=self.emb,
+                           index=IndexFlatL2(dimensions),
+                           docstore=InMemoryByteStore(),
                            index_to_docstore_id={}
                         )
             
         # Setup image generator
         self.client = OpenAI(base_url='https://external.api.recraft.ai/v1', api_key = env('RECRAFT_API_KEY'))
 
-        # Setup database
-        self.db = SQLDatabase.from_uri(
-            f"postgresql+psycopg2://{env('DB_USER01')}:{env('DB_PASS01')}@localhost:{env('DB_PORT01')}/{env('DB_NAME01')}"
-        )
+        # --- Conditional Database Setup ---
+        self.db = None
+        self.all_examples = {}
+        self.sql_examples = []
+        if self.use_db:
+            try:
+                print("[DB   ] Initializing database connection...")
+                # Setup database connection
+                # Assuming default is Chinook if DB is enabled
+                db_uri = f"postgresql+psycopg2://{env('DB_USER01')}:{env('DB_PASS01')}@localhost:{env('DB_PORT01')}/{env('DB_NAME01')}"
+                self.db = SQLDatabase.from_uri(db_uri)
+                print(f"[DB   ] Connected to {env('DB_NAME01')}")
 
-        # Opening JSON file
-        with open(abs_path + '/sql_examples.json') as examples_file:
-            self.all_examples = json.load(examples_file)
-            self.sql_examples = self.all_examples['Chinook']
+                # Load SQL examples only if DB is used
+                with open(abs_path + '/sql_examples.json') as examples_file:
+                    self.all_examples = json.load(examples_file)
+                    self.sql_examples = self.all_examples.get('Chinook', []) # Default to Chinook examples if available
+                print("[DB   ] SQL examples loaded.")
+            except Exception as e:
+                print(f"[Error] Failed to initialize database: {e}")
+                self.db = None # Ensure db is None if connection failed
+                self.use_db = False # Disable DB features if init fails
+                self.all_examples = {}
+                self.sql_examples = []
+        else:
+            print("[DB   ] Database use is disabled by command-line flag.")
+        # --- End Conditional Database Setup ---
 
     def get_models_list( self, models ):
         """Shows a list of available LLMs and returns the user's selection .
@@ -142,7 +158,13 @@ class Assistant:
         self.with_context = False
         self.with_images = False
         if chat_mode == 'SQL':
-            self.with_database = True
+            # Only enable DB mode if DB is available and initialized
+            if self.use_db and self.db:
+                self.with_database = True
+            else:
+                print("[Warn ] SQL mode selected, but database is not available/enabled.")
+                # Optionally switch to a default mode or just keep with_database False
+                pass # Keep with_database = False
         elif chat_mode == 'RAG':
             self.with_context = True
         elif chat_mode == 'T2I':
@@ -159,24 +181,30 @@ class Assistant:
         Returns:
             None
         """
-        if db_name == 'Chinook':
-            DBUSER = env('DB_USER01')
-            DBPASS = env('DB_PASS01')
-            DBPORT = env('DB_PORT01')
-            DBNAME = env('DB_NAME01')
-            SUFFIX = 'postgresql+psycopg2'
-        elif db_name == 'Movies':
-            DBUSER = env('DB_USER02')
-            DBPASS = env('DB_PASS02')
-            DBPORT = env('DB_PORT02')
-            DBNAME = env('DB_NAME02')
-            SUFFIX = 'postgresql+psycopg2'
-        
-        self.sql_examples = self.all_examples[db_name]
-        db_uri = f"{SUFFIX}://{DBUSER}:{DBPASS}@localhost:{DBPORT}/{DBNAME}"
+        if not self.use_db or not self.db:
+            print("[Error] Cannot change database, database use is disabled or not initialized.")
+            return
 
-        self.db = SQLDatabase.from_uri(db_uri)
-        print(f'[ DB  ] {db_name}')
+        db_config = {
+            'Chinook': ('DB_USER01', 'DB_PASS01', 'DB_PORT01', 'DB_NAME01'),
+            'Movies': ('DB_USER02', 'DB_PASS02', 'DB_PORT02', 'DB_NAME02')
+        }
+        SUFFIX = 'postgresql+psycopg2'
+
+        if db_name not in db_config:
+            print(f"[Error] Unknown database name: {db_name}")
+            return
+
+        try:
+            user_key, pass_key, port_key, name_key = db_config[db_name]
+            db_uri = f"{SUFFIX}://{env(user_key)}:{env(pass_key)}@localhost:{env(port_key)}/{env(name_key)}"
+            self.db = SQLDatabase.from_uri(db_uri)
+            self.sql_examples = self.all_examples.get(db_name, []) # Update examples
+            print(f'[ DB  ] Switched to {db_name}')
+        except Exception as e:
+            print(f"[Error] Failed to switch database to {db_name}: {e}")
+            # Optionally revert to a safe state or keep the old connection?
+            # For now, just print error. The self.db might be in an inconsistent state.
 
         return
 
@@ -193,6 +221,11 @@ class Assistant:
         Returns:
             String:       The generated SQL query
         """
+        if not self.use_db or not self.db:
+            print("[Error] Cannot get SQL chain, database use is disabled or not initialized.")
+            # Decide return value: None, empty string, or raise error?
+            return "Error: Database not available."
+
         # Create a FewShotPromptTemplate
         example_prompt = PromptTemplate(
             input_variables=["input", "output"],
@@ -327,6 +360,3 @@ class Assistant:
         chat_history.append({"role": "assistant", "content": output})
         
         return "", chat_history
-    
-
-
