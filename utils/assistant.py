@@ -27,11 +27,11 @@ APPCFG = LoadConfig()
 # ======================== Class: LLM Assistant ========================
 class Assistant:
     """ Assistant Class"""
-    def __init__(self, use_db: bool = False):
-        """ Constructor to store initial flags and initialize the assistant """
-        # --- Store initial flags ---
-        self.use_db = use_db
-        self.with_database = False # Will be updated by change_mode based on self.use_db
+    def __init__(self):
+        """ Constructor to initialize the assistant and attempt DB connection """
+        # --- Initialize flags ---
+        self.db_available = False # Flag to indicate successful DB connection
+        self.with_database = False # Runtime flag based on mode selection
         self.with_context = False
         self.with_images = False
 
@@ -59,33 +59,29 @@ class Assistant:
         # Setup image generator
         self.client = OpenAI(base_url='https://external.api.recraft.ai/v1', api_key = env('RECRAFT_API_KEY'))
 
-        # --- Conditional Database Setup ---
-        self.db = None
-        self.all_examples = {}
-        self.sql_examples = []
-        if self.use_db:
-            try:
-                print("[DB   ] Initializing database connection...")
-                # Setup database connection
-                # Assuming default is Chinook if DB is enabled
-                db_uri = f"postgresql+psycopg2://{env('DB_USER01')}:{env('DB_PASS01')}@localhost:{env('DB_PORT01')}/{env('DB_NAME01')}"
-                self.db = SQLDatabase.from_uri(db_uri)
-                print(f"[DB   ] Connected to {env('DB_NAME01')}")
+        # --- Attempt Database Connection --- 
+        try:
+            print("[DB   ] Attempting database connection...")
+            # Assuming default is Chinook for the initial connection attempt
+            db_uri = f"postgresql+psycopg2://{env('DB_USER01')}:{env('DB_PASS01')}@localhost:{env('DB_PORT01')}/{env('DB_NAME01')}"
+            self.db = SQLDatabase.from_uri(db_uri)
+            # Verify connection works (optional but good practice)
+            # self.db.run("SELECT 1") # Example verification query
+            self.db_available = True # Set flag on success
+            print(f"[DB   ] Connected successfully to {env('DB_NAME01')}")
 
-                # Load SQL examples only if DB is used
-                with open(abs_path + '/sql_examples.json') as examples_file:
-                    self.all_examples = json.load(examples_file)
-                    self.sql_examples = self.all_examples.get('Chinook', []) # Default to Chinook examples if available
-                print("[DB   ] SQL examples loaded.")
-            except Exception as e:
-                print(f"[Error] Failed to initialize database: {e}")
-                self.db = None # Ensure db is None if connection failed
-                self.use_db = False # Disable DB features if init fails
-                self.all_examples = {}
-                self.sql_examples = []
-        else:
-            print("[DB   ] Database use is disabled by command-line flag.")
-        # --- End Conditional Database Setup ---
+            # Load SQL examples only if DB connection succeeded
+            with open(abs_path + '/sql_examples.json') as examples_file:
+                self.all_examples = json.load(examples_file)
+                self.sql_examples = self.all_examples.get('Chinook', []) # Default to Chinook examples
+            print("[DB   ] SQL examples loaded.")
+        except Exception as e:
+            print(f"[Warn ] Database connection failed: {e}. SQL mode will be disabled.")
+            self.db = None # Ensure db is None if connection failed
+            self.db_available = False # Ensure flag is False
+            self.all_examples = {}
+            self.sql_examples = []
+        # --- End Database Connection Attempt ---
 
     def get_models_list( self, models ):
         """Shows a list of available LLMs and returns the user's selection .
@@ -159,7 +155,7 @@ class Assistant:
         self.with_images = False
         if chat_mode == 'SQL':
             # Only enable DB mode if DB is available and initialized
-            if self.use_db and self.db:
+            if self.db_available and self.db: # Check db_available flag
                 self.with_database = True
             else:
                 print("[Warn ] SQL mode selected, but database is not available/enabled.")
@@ -181,8 +177,8 @@ class Assistant:
         Returns:
             None
         """
-        if not self.use_db or not self.db:
-            print("[Error] Cannot change database, database use is disabled or not initialized.")
+        if not self.db_available: # Check db_available flag
+            print("[Error] Cannot change database, database is not available.")
             return
 
         db_config = {
@@ -221,8 +217,8 @@ class Assistant:
         Returns:
             String:       The generated SQL query
         """
-        if not self.use_db or not self.db:
-            print("[Error] Cannot get SQL chain, database use is disabled or not initialized.")
+        if not self.db_available or not self.db: # Check db_available flag
+            print("[Error] Cannot get SQL chain, database is not available.")
             # Decide return value: None, empty string, or raise error?
             return "Error: Database not available."
 

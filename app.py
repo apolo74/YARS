@@ -1,17 +1,17 @@
-import argparse
 import gradio as gr
 import requests
 
 from utils.assistant import Assistant
 
-def main_loop(use_db: bool):
+def main_loop():
     """Main loop where all magic happens!
     Args:
-      use_db (bool): Whether to enable database functionality.
+      None
     Returns:
       None
     """
-    assistant = Assistant(use_db=use_db)    
+    # Instantiate Assistant - it will attempt DB connection internally
+    assistant = Assistant()    
     local_models = requests.get('http://localhost:11434/api/tags').json()
     llm_models, emb_models = assistant.get_models_list(local_models['models'])
 
@@ -39,17 +39,28 @@ def main_loop(use_db: bool):
                     
                     # Left panel: running configuration parameters
                     with gr.Row():
-                        # Determine available modes based on use_db flag
-                        available_modes = ["LLM", "RAG", "T2I"]
+                        # Always include SQL mode in the choices
+                        available_modes = ["LLM", "SQL", "RAG", "T2I"]
                         default_mode = "LLM"
-                        if use_db:
-                            available_modes.insert(1, "SQL") # Insert SQL if DB is enabled
-                        else:
-                            if default_mode == "SQL": # Fallback if default was SQL but DB disabled
-                                default_mode = "LLM"
+                        # No conditional logic needed here anymore to build the list
+                        # # Check if the assistant successfully connected to the DB
+                        # if assistant.db_available: 
+                        #     available_modes.insert(1, "SQL") # Insert SQL if DB is available
+                        # # No need for fallback logic here, default is already LLM
 
                         chat_mode = gr.Radio(available_modes, value=default_mode, label="Chat mode")
-                        chat_mode.change(assistant.change_mode, chat_mode, st_void)
+                        # Add a notification if user clicks SQL when DB is unavailable
+                        def handle_sql_selection(mode):
+                            if mode == "SQL" and not assistant.db_available:
+                                gr.Warning("Database connection failed or unavailable. SQL mode is disabled.")
+                            # Call the original mode change logic
+                            assistant.change_mode(mode)
+                            # Return dummy value needed by Gradio for state changes potentially
+                            return None 
+                            
+                        # chat_mode.change(assistant.change_mode, chat_mode, st_void)
+                        chat_mode.change(handle_sql_selection, chat_mode, st_void) # Use the handler
+
                         @gr.render(inputs=chat_mode)
                         def show_split(chat_mode):
                             # LLM parameters:
@@ -69,18 +80,22 @@ def main_loop(use_db: bool):
                             tb_file.upload(assistant.ingest_pdf, tb_file, st_void, show_progress='full')
                             tb_file.clear(assistant.clear_pdf)
 
-                            if chat_mode == "SQL":
-                                dd_mode.visible     = True
-                                cb_verbose.visible  = True
-                            elif chat_mode == "RAG":
-                                dd_embedder.visible = True
-                                tb_file.visible     = True
-                            elif chat_mode == "T2I":
-                                dd_model.visible    = False
-                                sl_temp.visible     = False
-                            else:
-                                dd_model.visible    = True
-                                sl_temp.visible     = True
+                            # Determine visibility based on mode AND db availability for SQL
+                            sql_params_visible = chat_mode == "SQL" and assistant.db_available
+                            rag_params_visible = chat_mode == "RAG"
+                            t2i_params_visible = chat_mode == "T2I"
+                            llm_params_visible = chat_mode == "LLM"
+
+                            # Apply visibility settings
+                            dd_mode.visible = sql_params_visible
+                            cb_verbose.visible = sql_params_visible
+
+                            dd_embedder.visible = rag_params_visible
+                            tb_file.visible = rag_params_visible
+
+                            # Hide LLM params if T2I is selected
+                            dd_model.visible = not t2i_params_visible 
+                            sl_temp.visible = not t2i_params_visible
 
                 # Main area: Chat interface
                 with gr.Column(scale=5, elem_id='col'):
@@ -90,7 +105,7 @@ def main_loop(use_db: bool):
                         chatbot=gr.Chatbot(
                             height=500, 
                             type="messages",
-                            bubble_full_width=False,
+                            # bubble_full_width=False,
                             avatar_images=( ("images/human.png", "images/chatbot.png") ),
                             render=False,
                             elem_id="chatbot"
@@ -104,17 +119,7 @@ if __name__ == "__main__":
     print("YARS: Yet Another Retrieval Script".center(80))
     print(80 * '-')
 
-    # --- Argument Parsing --- 
-    parser = argparse.ArgumentParser(description="YARS: Yet Another Retrieval Script")
-    parser.add_argument(
-        "--use-db",
-        action="store_true",
-        help="Enable database-related features (e.g., SQL mode)."
-    )
-    args = parser.parse_args()
-    # --- End Argument Parsing ---
-
-    main_loop(use_db=args.use_db)
+    main_loop() # Call main_loop without arguments
 
     print(80 * '-')
     print("The end!".center(80))
