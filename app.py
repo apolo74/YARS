@@ -17,7 +17,7 @@ def main_loop():
 
     # Define available modes
     # Always include SQL mode in the choices, visibility handled later
-    available_modes = ["LLM", "SQL", "RAG", "T2I"]
+    available_modes = ["LLM", "RAG", "T2I", "Trading"]
     default_mode = "LLM"
 
     # Define UI
@@ -46,9 +46,6 @@ def main_loop():
                     # LLM parameters (Visible by default)
                     dd_model = gr.Dropdown(choices=llm_models, value=assistant.llm_model_name, label="Model", interactive=True, visible=True)
                     sl_temp = gr.Slider(value=0, minimum=0, maximum=1, step=0.1, label="Temperature", visible=True)
-                    # SQL parameters (Hidden by default)
-                    dd_mode = gr.Dropdown(choices=['Chinook', 'Movies'], value='Chinook', label='Database', interactive=True, visible=False)
-                    cb_verbose = gr.Checkbox(False, label='Verbose', visible=False)
                     # RAG parameters (Hidden by default)
                     dd_embedder = gr.Dropdown(choices=emb_models, value='mxbai-embed-large', label="Embedders", interactive=True, visible=False)
                     tb_file = gr.File(label="File", file_count='single', file_types=['.pdf'], visible=False)
@@ -57,8 +54,6 @@ def main_loop():
                     # --- Add .change handlers --- 
                     dd_model.change(assistant.change_llm_model, dd_model, st_void)
                     sl_temp.change(assistant.change_temperature, sl_temp, st_void)
-                    dd_mode.change(assistant.change_database, dd_mode, st_void)
-                    cb_verbose.change(assistant.change_verbose, cb_verbose, st_void)
                     dd_embedder.change( assistant.change_emb_model, dd_embedder, st_void)
                     tb_file.upload(assistant.ingest_pdf, tb_file, st_void, show_progress='full')
                     tb_file.clear(assistant.clear_pdf)
@@ -89,29 +84,25 @@ def main_loop():
                         selected_tab = evt.value # The value/label of the selected tab (e.g., "LLM", "SQL")
                         assistant.change_mode(selected_tab)
 
-                        # Determine visibility based on selected tab AND db availability for SQL
+                        # Determine visibility based on selected tab 
                         llm_visible = selected_tab == "LLM"
-                        sql_visible = selected_tab == "SQL" and assistant.db_available
                         rag_visible = selected_tab == "RAG"
                         t2i_visible = selected_tab == "T2I"
-                        
-                        # Issue warning for SQL if DB is unavailable
-                        if selected_tab == "SQL" and not assistant.db_available:
-                            gr.Warning("Database connection failed or unavailable. SQL mode features disabled.")
+                        trading_visible = selected_tab == "Trading"
                         
                         # Return updates for ALL controls listed in tabs.select outputs
+                        # Ensure controls are hidden for Trading mode too unless specified otherwise
                         return {
                             dd_model: gr.update(visible=llm_visible or rag_visible), # Show model for LLM and RAG
                             sl_temp: gr.update(visible=llm_visible),             # Show temp only for LLM
-                            dd_mode: gr.update(visible=sql_visible), 
-                            cb_verbose: gr.update(visible=sql_visible),
                             dd_embedder: gr.update(visible=rag_visible),
                             tb_file: gr.update(visible=rag_visible),
+                            # No Trading-specific controls yet, ensure others are hidden
                         }
 
                     # Connect the handler to the tabs' select event
                     # Outputs must list all components the handler function returns updates for
-                    tabs.select(handle_tab_select, None, [dd_model, sl_temp, dd_mode, cb_verbose, dd_embedder, tb_file])
+                    tabs.select(handle_tab_select, None, [dd_model, sl_temp, dd_embedder, tb_file])
                     
                     # Set initial mode in assistant (needed because radio button default is gone)
                     assistant.change_mode(default_mode)
