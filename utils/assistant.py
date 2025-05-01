@@ -61,16 +61,6 @@ class Assistant:
         # Setup image generator
         self.client = OpenAI(base_url='https://external.api.recraft.ai/v1', api_key = env('RECRAFT_API_KEY'))
 
-        # Setup database
-        self.db = SQLDatabase.from_uri(
-            f"postgresql+psycopg2://{env('DB_USER01')}:{env('DB_PASS01')}@localhost:{env('DB_PORT01')}/{env('DB_NAME01')}"
-        )
-
-        # Opening JSON file
-        with open(abs_path + '/sql_examples.json') as examples_file:
-            self.all_examples = json.load(examples_file)
-            self.sql_examples = self.all_examples['Chinook']
-
     def get_models_list( self, models ):
         """Shows a list of available LLMs and returns the user's selection .
         Args:
@@ -134,16 +124,14 @@ class Assistant:
     def change_mode(self, chat_mode):
         """ Switch between interaction modes
         Args:
-            String: Mode flag between 'LLM', 'SQL', 'RAG' and 'T2I'
+            String: Mode flag between 'LLM', 'RAG' and 'T2I'
         Returns:
             None
         """
-        self.with_database = False
         self.with_context = False
         self.with_images = False
-        if chat_mode == 'SQL':
-            self.with_database = True
-        elif chat_mode == 'RAG':
+        
+        if chat_mode == 'RAG':
             self.with_context = True
         elif chat_mode == 'T2I':
             self.with_images = True
@@ -151,91 +139,41 @@ class Assistant:
         print(f'[Mode ] {chat_mode}')
 
         return
-    
-    def change_database(self, db_name):
-        """ Updates values for database connection and sql examples
-        Args:
-            String:  Name of selected database
-        Returns:
-            None
-        """
-        if db_name == 'Chinook':
-            DBUSER = env('DB_USER01')
-            DBPASS = env('DB_PASS01')
-            DBPORT = env('DB_PORT01')
-            DBNAME = env('DB_NAME01')
-            SUFFIX = 'postgresql+psycopg2'
-        elif db_name == 'Movies':
-            DBUSER = env('DB_USER02')
-            DBPASS = env('DB_PASS02')
-            DBPORT = env('DB_PORT02')
-            DBNAME = env('DB_NAME02')
-            SUFFIX = 'postgresql+psycopg2'
+
+    def change_tone(self, tone_mode):
+        self.tone_mode = tone_mode
+        print(f'[Tone ] {self.tone_mode}')
+
+        category_prompt = f"""Classify the following query into one of these categories:
+            'technical', 'creative', or 'factual'.
         
-        self.sql_examples = self.all_examples[db_name]
-        db_uri = f"{SUFFIX}://{DBUSER}:{DBPASS}@localhost:{DBPORT}/{DBNAME}"
-
-        self.db = SQLDatabase.from_uri(db_uri)
-        print(f'[ DB  ] {db_name}')
-
-        return
+            Query: {user_query}
+        
+            Return ONLY the category name and nothing else."""
+        
+        category_response = generate_text(category_prompt)
+    
+        category = category_response.lower()
+        if "technical" in category:
+            category = "technical"
+        elif "creative" in category:
+            category = "creative"
+        else:
+            category = "factual"
+    
+        print(f"Query classified as: {category}")
+    
+        if category == "technical":
+            return handle_technical_query(user_query)
+        elif category == "creative":
+            return handle_creative_query(user_query)
+        else:  
+            return handle_factual_query(user_query)
 
     def change_verbose(self, flag_verbose):
         self.verbose = True if flag_verbose else False
 
         return
-
-    def get_sql_chain(self, db, query_txt):
-        """Generates the SQL query to be executed in the final chain
-        Args:
-            SQLDatabase:  The postgres database to query
-            String:       The question ask in natural language
-        Returns:
-            String:       The generated SQL query
-        """
-        # Create a FewShotPromptTemplate
-        example_prompt = PromptTemplate(
-            input_variables=["input", "output"],
-            template="Input: {input}\nOutput: {query}"
-        )
-        # Create a semantic similarity example selector from the provided examples
-        example_selector = SemanticSimilarityExampleSelector.from_examples(
-            examples        = self.sql_examples,
-            embeddings      = OllamaEmbeddings(model=APPCFG.embedding_model),
-            vectorstore_cls = FAISS,
-            k               = 5,
-            input_keys      = ["input"],
-        )
-        # Create a prompt template guided by examples
-        few_shot_prompt = FewShotPromptTemplate(
-            example_prompt  = example_prompt,
-            example_selector= example_selector,
-            prefix          = APPCFG.template_query, #template,
-            suffix          = "Question: {input}\nOutput:", 
-            input_variables = ["input", "top_k", "table_info"],
-        )
-
-        # Define the chain for generating the SQL query
-        def extract_sql( raw_query ):
-            response = re.search("(SELECT.*);", raw_query.replace("\n", " "))
-            if response == None:
-                response = raw_query
-            else:
-                response = f'{response.group(1)}'
-
-            return response
-
-        # Define the chain for generating the SQL query
-        sql_chain = (
-            RunnablePassthrough.assign(table_info=lambda _: db.get_table_info())
-            | few_shot_prompt
-            | self.llm
-            | StrOutputParser()
-        )
-        raw_query = sql_chain.invoke({"input": query_txt, "top_k": 5})
-        sql_query = extract_sql(raw_query)
-
-        return sql_query
 
     def ingest_pdf(self, file):
         """Transforms your PDF(s) into vector format and splits it(them) into chunks.
@@ -262,25 +200,8 @@ class Assistant:
         return None
     
     def respond(self, message, chat_history):
-        # Mode: interaction with databases
-        if self.with_database:
-            answer_prompt = PromptTemplate.from_template( APPCFG.template_answer )
-            sql_query = self.get_sql_chain(self.db, message)
-            sql_run = self.db.run( sql_query )
-
-            chain = (
-                answer_prompt
-                | self.llm
-                | StrOutputParser()
-            )
-
-            output = f"[SQL] {sql_query};\n[Run] {sql_run};\n[LLM] " if self.verbose else ''
-            for chunk in chain.stream(  {"question": message, "query": sql_query, "result": sql_run}  ):
-                output = output + chunk
-
-                yield output
         # Mode: text-to-image generation
-        elif self.with_images:
+        if self.with_images:
             response    = self.client.images.generate(
                 prompt          = message,
                 style           = 'realistic_image',

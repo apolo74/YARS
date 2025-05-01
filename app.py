@@ -33,12 +33,12 @@ def main_loop():
         with gr.Column(elem_classes=["container"]):   
             with gr.Row():
                 # Left area: Parameters
-                with gr.Column(scale=1, min_width=200):
+                with gr.Column(scale=1, min_width=260):
                     st_void = gr.State()
                     
                     # Left panel: running configuration parameters
                     with gr.Row():
-                        chat_mode = gr.Radio(["LLM", "SQL", "RAG", "T2I"], value='LLM', label="Chat mode")
+                        chat_mode = gr.Radio(["LLM", "RAG", "T2I"], value='LLM', label="Chat mode")
                         chat_mode.change(assistant.change_mode, chat_mode, st_void)
                         @gr.render(inputs=chat_mode)
                         def show_split(chat_mode):
@@ -47,11 +47,9 @@ def main_loop():
                             dd_model.change(assistant.change_llm_model, dd_model, st_void)
                             sl_temp = gr.Slider(value=0, minimum=0, maximum=1, step=0.1, label="Temperature")
                             sl_temp.change(assistant.change_temperature, sl_temp, st_void)
-                            # SQL parameters:
-                            dd_mode = gr.Dropdown(choices=['Chinook', 'Movies'], value='Chinook', label='Database', interactive=True, visible=False)
-                            dd_mode.change(assistant.change_database, dd_mode, st_void)
-                            cb_verbose = gr.Checkbox(False, label='Verbose', visible=False )
-                            cb_verbose.change(assistant.change_verbose, cb_verbose, st_void)
+                            with gr.Group():
+                                tone_mode = gr.Radio(["Factual", "Technical", "Creative"], value='Factual', label="Tone", )
+                                tone_mode.change(assistant.change_tone, tone_mode, st_void)
                             # RAG parameters:
                             dd_embedder = gr.Dropdown(choices=emb_models, value='mxbai-embed-large', label="Embedders", visible=False)
                             dd_embedder.change( assistant.change_emb_model, dd_embedder, st_void)
@@ -59,15 +57,14 @@ def main_loop():
                             tb_file.upload(assistant.ingest_pdf, tb_file, st_void, show_progress='full')
                             tb_file.clear(assistant.clear_pdf)
 
-                            if chat_mode == "SQL":
-                                dd_mode.visible     = True
-                                cb_verbose.visible  = True
-                            elif chat_mode == "RAG":
+                            if chat_mode == "RAG":
                                 dd_embedder.visible = True
                                 tb_file.visible     = True
+                                tone_mode.visible   = False
                             elif chat_mode == "T2I":
                                 dd_model.visible    = False
                                 sl_temp.visible     = False
+                                tone_mode.visible   = False
                             else:
                                 dd_model.visible    = True
                                 sl_temp.visible     = True
