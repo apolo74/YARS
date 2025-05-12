@@ -17,13 +17,22 @@ def main_loop():
     # Define UI
     PLACE_HOLDER = "Ask me something!"
     css = """
+        body, .gradio-container, .contain {
+            background-color: #181818 !important;
+            color: #f1f1f1 !important;
+        }
         .contain { display: flex !important; flex-direction: column !important; }
         #component-0, #component-3, #component-10, #component-8  { height: 100% !important; }
         #chatbot { flex-grow: 1 !important; overflow: auto !important;}
-        .chatbot.prose.md {opacity: 1.0 ! important}
+        .chatbot.prose.md {opacity: 1.0 !important; color: #f1f1f1 !important;}
         #col { height: calc(100vh - 170px) !important; }
         .message-row img {margin: 0px !important;}
         .avatar-container img {padding: 0px !important;}
+        
+        /* Gradio input, output, and button styling for dark mode */
+        .gradio-container .markdown-body, .gradio-container .prose {
+            color: #f1f1f1 !important;
+        }
     """
     with gr.Blocks( title='YARS', css=css ) as demo:                        
         gr.Markdown("""
@@ -47,9 +56,9 @@ def main_loop():
                             dd_model.change(assistant.change_llm_model, dd_model, st_void)
                             sl_temp = gr.Slider(value=0, minimum=0, maximum=1, step=0.1, label="Temperature")
                             sl_temp.change(assistant.change_temperature, sl_temp, st_void)
-                            with gr.Group():
-                                tone_mode = gr.Radio(["Factual", "Technical", "Creative"], value='Factual', label="Tone", )
-                                tone_mode.change(assistant.change_tone, tone_mode, st_void)
+                            # with gr.Group():
+                            #     tone_mode = gr.Radio(["Factual", "Technical", "Creative"], value='Factual', label="Tone", )
+                            #     tone_mode.change(assistant.change_tone, tone_mode, st_void)
                             # RAG parameters:
                             dd_embedder = gr.Dropdown(choices=emb_models, value='mxbai-embed-large', label="Embedders", visible=False)
                             dd_embedder.change( assistant.change_emb_model, dd_embedder, st_void)
@@ -78,7 +87,7 @@ def main_loop():
                             height=500, 
                             type="messages",
                             bubble_full_width=False,
-                            avatar_images=( ("images/human.png", "images/chatbot.png") ),
+                            avatar_images=( ("images/human_dark.png", "images/chatbot_dark.png") ),
                             render=False,
                             elem_id="chatbot"
                         ),

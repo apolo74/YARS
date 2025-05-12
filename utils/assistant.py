@@ -140,36 +140,6 @@ class Assistant:
 
         return
 
-    def change_tone(self, tone_mode):
-        self.tone_mode = tone_mode
-        print(f'[Tone ] {self.tone_mode}')
-
-        category_prompt = f"""Classify the following query into one of these categories:
-            'technical', 'creative', or 'factual'.
-        
-            Query: {user_query}
-        
-            Return ONLY the category name and nothing else."""
-        
-        category_response = generate_text(category_prompt)
-    
-        category = category_response.lower()
-        if "technical" in category:
-            category = "technical"
-        elif "creative" in category:
-            category = "creative"
-        else:
-            category = "factual"
-    
-        print(f"Query classified as: {category}")
-    
-        if category == "technical":
-            return handle_technical_query(user_query)
-        elif category == "creative":
-            return handle_creative_query(user_query)
-        else:  
-            return handle_factual_query(user_query)
-
     def change_verbose(self, flag_verbose):
         self.verbose = True if flag_verbose else False
 
@@ -233,12 +203,29 @@ class Assistant:
             yield output
         # Mode: open chat with LLMs
         else:
+            category_prompt = f"""Classify the following query into one of these categories:
+                'technical', 'creative', or 'factual'.
+                Query: {message}
+                Return ONLY the category name and nothing else."""
+
+            messages = [("system", category_prompt), ("human", message)]
+            category_response = self.llm.invoke(messages)
+
+            category = category_response.content.lower()
+            if category == "technical":
+                system_prompt = "You are a technical assistant. Provide detailed technical explanations."
+            elif category == "creative":
+                system_prompt = "You are a creative assistant. Be imaginative and inspiring."
+            else:  
+                system_prompt = "You are a factual assistant. Provide accurate information concisely."
+
+            print(f"Query classified as: {category}")
             prompt = ChatPromptTemplate.from_messages([
-                ("system", APPCFG.template_chat),
+                ("system", system_prompt),
                 ("human", message)
             ])
             chain = prompt | self.llm
-            output = ""
+            output = f'[{category}]: '
             for chunk in chain.stream( {'question': message} ):
                 output = output + chunk.content
 
