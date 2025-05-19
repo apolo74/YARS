@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import random
 import environ
 
 from openai import OpenAI
@@ -11,6 +12,8 @@ from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_community.utilities import SQLDatabase
 from langchain_community.document_loaders import PyMuPDFLoader
+from langchain_core.tools import tool
+from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate, ChatPromptTemplate, FewShotPromptTemplate 
 from langchain_core.runnables import RunnablePassthrough
@@ -25,6 +28,28 @@ env = environ.Env()
 environ.Env.read_env()
 
 APPCFG = LoadConfig()
+
+@tool
+def addition(a: float, b: float) -> float:
+   """Add two numbers."""
+   return a + b
+
+@tool
+def substraction(a: float, b: float) -> float:
+   """Substract two numbers."""
+   return a - b
+
+@tool
+def multiplication(a: float, b: float) -> float:
+   """Multiply two numbers."""
+   return a * b
+
+@tool
+def division(a: float, b: float) -> float:
+   """Divide two numbers."""
+   return a / b
+
+tools = [addition, substraction, multiplication, division]
 
 # ======================== Class: LLM Assistant ========================
 @dataclass
@@ -47,6 +72,7 @@ class Assistant:
         self.temperature = 0
 
         self.llm = ChatOllama( model = self.llm_model_name )
+        self.llm_with_tools = self.llm.bind_tools(tools)
         self.emb = OllamaEmbeddings( model = self.emb_model_name )
 
         # Setup RAG parameters
@@ -169,26 +195,24 @@ class Assistant:
 
         return None
 
-    def get_tone(self, message):
-        category_prompt = f"""Classify the following query into one of these categories:
-                'technical', 'creative', or 'factual'.
-                Query: {message}
-                Return ONLY the category name and nothing else."""
-
-        messages = [("system", category_prompt), ("human", message)]
-        category_response = self.llm.invoke(messages)
-
-        category = category_response.content.lower()
-        if category == "technical":
-            system_prompt = "You are a technical assistant. Provide detailed technical explanations."
-        elif category == "creative":
-            system_prompt = "You are a creative assistant. Be imaginative and inspiring."
-        else:  
-            system_prompt = "You are a factual assistant. Provide accurate information concisely."
-
-        print(f"Query classified as: {category}")
-
-        return system_prompt
+    def tool_calling_agent(self, user_query):
+        # Human message
+        messages = [HumanMessage(user_query)]
+        # AI message
+        ai_msg = self.llm_with_tools.invoke(messages)
+        messages.append(ai_msg)
+        # Tool message
+        for tool_call in ai_msg.tool_calls:
+            selected_tool = {
+                "addition": addition, 
+                "substraction": substraction, 
+                "multiplication": multiplication,
+                "division": division
+            }[tool_call["name"].lower()]
+            tool_msg = selected_tool.invoke(tool_call)
+            messages.append(tool_msg)
+        
+        return messages
 
     def respond(self, message, chat_history):
         # Mode: text-to-image generation
@@ -224,18 +248,20 @@ class Assistant:
             yield output
         # Mode: open chat with LLMs
         else:
-            system_prompt = self.get_tone(message)
-            
-            prompt = ChatPromptTemplate.from_messages([
-                    ("system", system_prompt),
-                    ("human", message)
-                ])
-            chain = prompt | self.llm
-            output = ''
-            for chunk in chain.stream( {'question': message} ):
-                output += chunk.content
+            messages = self.tool_calling_agent(message)
+            output = self.llm_with_tools.invoke(messages)
+            yield output.content
 
-                yield output
+            # prompt = ChatPromptTemplate.from_messages([
+            #         ("system", APPCFG.system_prompt),
+            #         ("human", message)
+            #     ])
+            # chain = prompt | self.llm_with_tools
+            # output = ''
+            # for chunk in chain.stream( {'query': message} ):
+            #     output += chunk.content
+
+            #     yield output
 
         chat_history.append({"role": "user", "content": message})
         chat_history.append({"role": "assistant", "content": output})
