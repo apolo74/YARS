@@ -169,6 +169,27 @@ class Assistant:
 
         return None
 
+    def get_tone(self, message):
+        category_prompt = f"""Classify the following query into one of these categories:
+                'technical', 'creative', or 'factual'.
+                Query: {message}
+                Return ONLY the category name and nothing else."""
+
+        messages = [("system", category_prompt), ("human", message)]
+        category_response = self.llm.invoke(messages)
+
+        category = category_response.content.lower()
+        if category == "technical":
+            system_prompt = "You are a technical assistant. Provide detailed technical explanations."
+        elif category == "creative":
+            system_prompt = "You are a creative assistant. Be imaginative and inspiring."
+        else:  
+            system_prompt = "You are a factual assistant. Provide accurate information concisely."
+
+        print(f"Query classified as: {category}")
+
+        return system_prompt
+
     def respond(self, message, chat_history):
         # Mode: text-to-image generation
         if self.with_images:
@@ -203,8 +224,10 @@ class Assistant:
             yield output
         # Mode: open chat with LLMs
         else:
+            system_prompt = self.get_tone(message)
+            
             prompt = ChatPromptTemplate.from_messages([
-                    ("system", APPCFG.template_chat),
+                    ("system", system_prompt),
                     ("human", message)
                 ])
             chain = prompt | self.llm
