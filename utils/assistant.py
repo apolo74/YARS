@@ -168,7 +168,7 @@ class Assistant:
         self.with_context = False
 
         return None
-    
+
     def respond(self, message, chat_history):
         # Mode: text-to-image generation
         if self.with_images:
@@ -203,31 +203,14 @@ class Assistant:
             yield output
         # Mode: open chat with LLMs
         else:
-            category_prompt = f"""Classify the following query into one of these categories:
-                'technical', 'creative', or 'factual'.
-                Query: {message}
-                Return ONLY the category name and nothing else."""
-
-            messages = [("system", category_prompt), ("human", message)]
-            category_response = self.llm.invoke(messages)
-
-            category = category_response.content.lower()
-            if category == "technical":
-                system_prompt = "You are a technical assistant. Provide detailed technical explanations."
-            elif category == "creative":
-                system_prompt = "You are a creative assistant. Be imaginative and inspiring."
-            else:  
-                system_prompt = "You are a factual assistant. Provide accurate information concisely."
-
-            print(f"Query classified as: {category}")
             prompt = ChatPromptTemplate.from_messages([
-                ("system", system_prompt),
-                ("human", message)
-            ])
+                    ("system", APPCFG.template_chat),
+                    ("human", message)
+                ])
             chain = prompt | self.llm
-            output = f'[{category}]: '
+            output = ''
             for chunk in chain.stream( {'question': message} ):
-                output = output + chunk.content
+                output += chunk.content
 
                 yield output
 
@@ -235,6 +218,3 @@ class Assistant:
         chat_history.append({"role": "assistant", "content": output})
         
         return "", chat_history
-    
-
-
