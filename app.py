@@ -56,9 +56,6 @@ def main_loop():
                             dd_model.change(assistant.change_llm_model, dd_model, st_void)
                             sl_temp = gr.Slider(value=0, minimum=0, maximum=1, step=0.1, label="Temperature")
                             sl_temp.change(assistant.change_temperature, sl_temp, st_void)
-                            # with gr.Group():
-                            #     tone_mode = gr.Radio(["Factual", "Technical", "Creative"], value='Factual', label="Tone", )
-                            #     tone_mode.change(assistant.change_tone, tone_mode, st_void)
                             # RAG parameters:
                             dd_embedder = gr.Dropdown(choices=emb_models, value='mxbai-embed-large', label="Embedders", visible=False)
                             dd_embedder.change( assistant.change_emb_model, dd_embedder, st_void)
@@ -69,11 +66,9 @@ def main_loop():
                             if chat_mode == "RAG":
                                 dd_embedder.visible = True
                                 tb_file.visible     = True
-                                tone_mode.visible   = False
                             elif chat_mode == "T2I":
                                 dd_model.visible    = False
                                 sl_temp.visible     = False
-                                tone_mode.visible   = False
                             else:
                                 dd_model.visible    = True
                                 sl_temp.visible     = True

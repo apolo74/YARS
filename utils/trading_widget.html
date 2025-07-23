@@ -1,0 +1,73 @@
+<body>
+    <nav id="ticker-tape">
+        <!-- TradingView Widget BEGIN -->
+        <div class="tradingview-widget-container">
+            <div class="tradingview-widget-container__widget"></div>
+            <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+                {
+                "symbols": [
+                {
+                    "description": "",
+                    "proName": "FX:EURUSD"
+                },
+                {
+                    "description": "",
+                    "proName": "FX:GBPUSD"
+                },
+                {
+                    "description": "",
+                    "proName": "FX:EURGBP"
+                },
+                {
+                    "description": "",
+                    "proName": "FX:USDCAD"
+                },
+                {
+                    "description": "",
+                    "proName": "FX:USDJPY"
+                },
+                {
+                    "description": "",
+                    "proName": "FX:USDCHF"
+                }
+                ],
+                "showSymbolLogo": true,
+                "colorTheme": "light",
+                "isTransparent": false,
+                "displayMode": "adaptive",
+                "locale": "en"
+                }
+            </script>
+        </div>
+        <!-- TradingView Widget END -->
+    </nav>
+    <main>
+        <section id="advanced-chart">
+            <!-- TradingView Widget BEGIN -->
+            <div class="tradingview-widget-container" style="height:100%;width:100%">
+                <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+                <div class="tradingview-widget-copyright">
+                    <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">
+                        <span class="blue-text">Track all markets on TradingView</span>
+                    </a>
+                </div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+                    {
+                        "autosize": true,
+                        "symbol": "FX:EURUSD",
+                        "interval": "D",
+                        "timezone": "America/New_York",
+                        "theme": "dark",
+                        "style": "1",
+                        "locale": "en",
+                        "withdateranges": true,
+                        "hide_side_toolbar": false,
+                        "allow_symbol_change": true,
+                        "support_host": "https://www.tradingview.com"
+                    }
+                </script>
+            </div>
+            <!-- TradingView Widget END -->
+        </section>
+    </main>
+</body>
